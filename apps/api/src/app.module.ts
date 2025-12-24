@@ -10,6 +10,7 @@ import { AdminModule } from './modules/admin/admin.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { WizardModule } from './modules/wizard/wizard.module';
 import { StorageModule } from './storage/storage.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
     imports: [
@@ -27,6 +28,7 @@ import { StorageModule } from './storage/storage.module';
         AdminModule,
         SettingsModule,
         WizardModule,
+        HealthModule,
     ],
 })
 export class AppModule { }
