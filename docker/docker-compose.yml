@@ -1,0 +1,78 @@
+services:
+  unpload:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: unpload
+    ports:
+      - "3000:3000" # Frontend
+      - "4000:4000" # API
+    environment:
+      - DATABASE_URL=postgresql://unpload:${DB_PASSWORD:-unpload}@db:5432/unpload
+      - JWT_SECRET=${JWT_SECRET:-change-this-in-production}
+      - STORAGE_TYPE=${STORAGE_TYPE:-local}
+      - STORAGE_PATH=/data/uploads
+      - APP_URL=http://localhost:3000
+      - API_URL=http://localhost:4000
+      - DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID:-}
+      - DISCORD_CLIENT_SECRET=${DISCORD_CLIENT_SECRET:-}
+      - DISCORD_CALLBACK_URL=http://localhost:3000/api/auth/oauth/discord/callback
+    volumes:
+      - unpload_data:/data/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - unpload-network
+
+  db:
+    image: postgres:16-alpine
+    container_name: unpload-db
+    environment:
+      - POSTGRES_USER=unpload
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-unpload}
+      - POSTGRES_DB=unpload
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U unpload" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - unpload-network
+
+  # Optional: Caddy reverse proxy for HTTPS
+  caddy:
+    image: caddy:2-alpine
+    container_name: unpload-proxy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - unpload
+    restart: unless-stopped
+    networks:
+      - unpload-network
+    profiles:
+      - with-proxy
+
+volumes:
+  unpload_data:
+    driver: local
+  postgres_data:
+    driver: local
+  caddy_data:
+    driver: local
+  caddy_config:
+    driver: local
+
+networks:
+  unpload-network:
+    driver: bridge
