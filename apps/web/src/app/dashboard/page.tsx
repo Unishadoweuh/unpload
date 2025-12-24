@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Upload, Folder, Share2, Settings, LogOut, Plus, FileIcon, MoreVertical, Download, Trash2 } from 'lucide-react';
+import { Upload, Folder, Share2, LogOut, Plus, FileIcon, Download, Trash2, Link2, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { ShareModal } from '@/components/share-modal';
 import { api } from '@/lib/api';
 import { formatBytes, formatDate, getFileIcon } from '@/lib/utils';
 
@@ -26,6 +27,7 @@ interface UserData {
     id: string;
     name: string;
     email: string;
+    role?: 'ADMIN' | 'USER';
     quota?: {
         usedBytes: number;
         maxBytes: number;
@@ -40,6 +42,7 @@ export default function DashboardPage() {
     const [loading, setLoading] = useState(true);
     const [uploading, setUploading] = useState(false);
     const [currentFolder, setCurrentFolder] = useState<string | null>(null);
+    const [shareModal, setShareModal] = useState<{ fileId?: string; folderId?: string; name: string } | null>(null);
 
     useEffect(() => {
         const token = api.getToken();
@@ -120,7 +123,17 @@ export default function DashboardPage() {
                         <div className="flex items-center gap-4">
                             <h1 className="text-xl font-bold text-primary-600">UnPload</h1>
                         </div>
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                            <Button variant="ghost" onClick={() => router.push('/shares')}>
+                                <Link2 className="h-4 w-4 mr-2" />
+                                My Shares
+                            </Button>
+                            {user?.role === 'ADMIN' && (
+                                <Button variant="ghost" onClick={() => router.push('/admin')}>
+                                    <Shield className="h-4 w-4 mr-2" />
+                                    Admin
+                                </Button>
+                            )}
                             <span className="text-sm text-gray-600 dark:text-gray-400">
                                 {user?.email}
                             </span>
@@ -260,6 +273,16 @@ export default function DashboardPage() {
                                             <p className="font-medium truncate">{folder.name}</p>
                                             <p className="text-sm text-gray-500">{formatDate(folder.createdAt)}</p>
                                         </div>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setShareModal({ folderId: folder.id, name: folder.name });
+                                            }}
+                                        >
+                                            <Share2 className="h-4 w-4" />
+                                        </Button>
                                     </div>
                                 </CardContent>
                             </Card>
@@ -276,6 +299,13 @@ export default function DashboardPage() {
                                             </p>
                                         </div>
                                         <div className="flex gap-1">
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={() => setShareModal({ fileId: file.id, name: file.name })}
+                                            >
+                                                <Share2 className="h-4 w-4" />
+                                            </Button>
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
@@ -298,6 +328,17 @@ export default function DashboardPage() {
                     </div>
                 )}
             </div>
+
+            {/* Share Modal */}
+            {shareModal && (
+                <ShareModal
+                    fileId={shareModal.fileId}
+                    folderId={shareModal.folderId}
+                    itemName={shareModal.name}
+                    onClose={() => setShareModal(null)}
+                    onCreated={() => { }}
+                />
+            )}
         </div>
     );
 }
