@@ -1,5 +1,3 @@
-# UnPload Production Docker Compose
-# Deploy without registry - images loaded locally
 
 services:
   db:

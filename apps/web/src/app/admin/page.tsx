@@ -342,72 +342,250 @@ export default function AdminPage() {
 
                 {/* Settings Tab */}
                 {tab === 'settings' && (
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Platform Settings</CardTitle>
-                            <CardDescription>Configure platform-wide settings</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-6">
-                            {/* Logo Upload */}
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium">Application Logo</label>
-                                <div className="flex items-center gap-4">
-                                    <div className="w-16 h-16 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg flex items-center justify-center bg-gray-50 dark:bg-gray-800 overflow-hidden">
-                                        <span className="text-xs text-gray-400">Logo</span>
-                                    </div>
-                                    <div className="flex-1">
-                                        <input
-                                            type="file"
-                                            accept="image/*"
-                                            className="hidden"
-                                            id="logo-upload"
-                                            onChange={async (e) => {
-                                                const file = e.target.files?.[0];
-                                                if (!file) return;
-                                                const formData = new FormData();
-                                                formData.append('logo', file);
-                                                try {
-                                                    const token = api.getToken();
-                                                    await fetch(`${API_URL}/api/settings/logo`, {
-                                                        method: 'POST',
-                                                        headers: { 'Authorization': `Bearer ${token}` },
-                                                        body: formData,
-                                                    });
-                                                    alert('Logo uploaded successfully!');
-                                                    window.location.reload();
-                                                } catch (error) {
-                                                    console.error('Logo upload failed:', error);
-                                                    alert('Logo upload failed');
-                                                }
-                                            }}
-                                        />
-                                        <label htmlFor="logo-upload" className="cursor-pointer">
-                                            <span className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 h-10 px-4 py-2">
-                                                Upload Logo
-                                            </span>
-                                        </label>
-                                        <p className="text-xs text-gray-500 mt-1">PNG or SVG, max 1MB. Used in header and favicon.</p>
+                    <div className="space-y-6">
+                        {/* General Settings */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>General Settings</CardTitle>
+                                <CardDescription>Application name, logo, and basic configuration</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                {/* Logo Upload */}
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium">Application Logo</label>
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-16 h-16 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg flex items-center justify-center bg-gray-50 dark:bg-gray-800 overflow-hidden">
+                                            <span className="text-xs text-gray-400">Logo</span>
+                                        </div>
+                                        <div className="flex-1">
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                className="hidden"
+                                                id="logo-upload"
+                                                onChange={async (e) => {
+                                                    const file = e.target.files?.[0];
+                                                    if (!file) return;
+                                                    const formData = new FormData();
+                                                    formData.append('logo', file);
+                                                    try {
+                                                        const token = api.getToken();
+                                                        await fetch(`${API_URL}/api/settings/logo`, {
+                                                            method: 'POST',
+                                                            headers: { 'Authorization': `Bearer ${token}` },
+                                                            body: formData,
+                                                        });
+                                                        alert('Logo uploaded successfully!');
+                                                        window.location.reload();
+                                                    } catch (error) {
+                                                        console.error('Logo upload failed:', error);
+                                                    }
+                                                }}
+                                            />
+                                            <label htmlFor="logo-upload" className="cursor-pointer">
+                                                <span className="inline-flex items-center justify-center rounded-md text-sm font-medium border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 h-9 px-4 py-2">
+                                                    Upload Logo
+                                                </span>
+                                            </label>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium">Application Name</label>
-                                <Input defaultValue="UnPload" />
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium">Default Quota (GB)</label>
-                                <Input type="number" defaultValue="5" />
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium">Allow Registration</label>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium">Application Name</label>
+                                        <Input id="app_name" defaultValue="UnPload" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium">Default Quota (GB)</label>
+                                        <Input id="default_quota" type="number" defaultValue="5" />
+                                    </div>
+                                </div>
                                 <div className="flex items-center gap-2">
-                                    <input type="checkbox" defaultChecked className="rounded" />
-                                    <span className="text-sm text-gray-500">Allow new users to register</span>
+                                    <input type="checkbox" id="allow_registration" defaultChecked className="rounded" />
+                                    <label htmlFor="allow_registration" className="text-sm">Allow new users to register</label>
                                 </div>
-                            </div>
-                            <Button>Save Settings</Button>
-                        </CardContent>
-                    </Card>
+                                <Button onClick={async () => {
+                                    const settings = {
+                                        app_name: (document.getElementById('app_name') as HTMLInputElement)?.value,
+                                        default_quota_gb: (document.getElementById('default_quota') as HTMLInputElement)?.value,
+                                        allow_registration: (document.getElementById('allow_registration') as HTMLInputElement)?.checked,
+                                    };
+                                    try {
+                                        const token = api.getToken();
+                                        for (const [key, value] of Object.entries(settings)) {
+                                            await fetch(`${API_URL}/api/settings/${key}`, {
+                                                method: 'PUT',
+                                                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ value, category: 'general' }),
+                                            });
+                                        }
+                                        alert('Settings saved!');
+                                    } catch (error) { console.error(error); }
+                                }}>Save General Settings</Button>
+                            </CardContent>
+                        </Card>
+
+                        {/* SMTP Settings */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Email (SMTP)</CardTitle>
+                                <CardDescription>Configure email notifications and password resets</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium">SMTP Host</label>
+                                        <Input id="smtp_host" placeholder="smtp.example.com" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium">SMTP Port</label>
+                                        <Input id="smtp_port" type="number" defaultValue="587" />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium">Username</label>
+                                        <Input id="smtp_user" placeholder="user@example.com" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium">Password</label>
+                                        <Input id="smtp_password" type="password" placeholder="••••••••" />
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium">From Address</label>
+                                    <Input id="smtp_from" placeholder="noreply@example.com" />
+                                </div>
+                                <Button variant="outline" onClick={async () => {
+                                    const settings = {
+                                        smtp_host: (document.getElementById('smtp_host') as HTMLInputElement)?.value,
+                                        smtp_port: (document.getElementById('smtp_port') as HTMLInputElement)?.value,
+                                        smtp_user: (document.getElementById('smtp_user') as HTMLInputElement)?.value,
+                                        smtp_password: (document.getElementById('smtp_password') as HTMLInputElement)?.value,
+                                        smtp_from: (document.getElementById('smtp_from') as HTMLInputElement)?.value,
+                                    };
+                                    try {
+                                        const token = api.getToken();
+                                        for (const [key, value] of Object.entries(settings)) {
+                                            if (value) {
+                                                await fetch(`${API_URL}/api/settings/${key}`, {
+                                                    method: 'PUT',
+                                                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({ value, category: 'smtp' }),
+                                                });
+                                            }
+                                        }
+                                        alert('SMTP settings saved!');
+                                    } catch (error) { console.error(error); }
+                                }}>Save SMTP Settings</Button>
+                            </CardContent>
+                        </Card>
+
+                        {/* Discord OAuth */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Discord OAuth</CardTitle>
+                                <CardDescription>Enable login with Discord</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium">Client ID</label>
+                                        <Input id="discord_client_id" placeholder="Discord Application Client ID" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium">Client Secret</label>
+                                        <Input id="discord_client_secret" type="password" placeholder="••••••••" />
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium">Callback URL</label>
+                                    <Input id="discord_callback" placeholder="https://yourapp.com/api/auth/oauth/discord/callback" />
+                                </div>
+                                <Button variant="outline" onClick={async () => {
+                                    const settings = {
+                                        discord_client_id: (document.getElementById('discord_client_id') as HTMLInputElement)?.value,
+                                        discord_client_secret: (document.getElementById('discord_client_secret') as HTMLInputElement)?.value,
+                                        discord_callback_url: (document.getElementById('discord_callback') as HTMLInputElement)?.value,
+                                    };
+                                    try {
+                                        const token = api.getToken();
+                                        for (const [key, value] of Object.entries(settings)) {
+                                            if (value) {
+                                                await fetch(`${API_URL}/api/settings/${key}`, {
+                                                    method: 'PUT',
+                                                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({ value, category: 'oauth' }),
+                                                });
+                                            }
+                                        }
+                                        alert('Discord OAuth saved!');
+                                    } catch (error) { console.error(error); }
+                                }}>Save Discord OAuth</Button>
+                            </CardContent>
+                        </Card>
+
+                        {/* S3 Storage */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>S3 Storage (Optional)</CardTitle>
+                                <CardDescription>Use S3-compatible storage instead of local filesystem</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="flex items-center gap-2 mb-4">
+                                    <input type="checkbox" id="s3_enabled" className="rounded" />
+                                    <label htmlFor="s3_enabled" className="text-sm font-medium">Enable S3 Storage</label>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium">S3 Endpoint</label>
+                                        <Input id="s3_endpoint" placeholder="https://s3.amazonaws.com" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium">Bucket Name</label>
+                                        <Input id="s3_bucket" placeholder="my-bucket" />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium">Access Key</label>
+                                        <Input id="s3_access_key" placeholder="AKIAIOSFODNN7EXAMPLE" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium">Secret Key</label>
+                                        <Input id="s3_secret_key" type="password" placeholder="••••••••" />
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium">Region</label>
+                                    <Input id="s3_region" defaultValue="us-east-1" />
+                                </div>
+                                <Button variant="outline" onClick={async () => {
+                                    const settings = {
+                                        s3_enabled: (document.getElementById('s3_enabled') as HTMLInputElement)?.checked,
+                                        s3_endpoint: (document.getElementById('s3_endpoint') as HTMLInputElement)?.value,
+                                        s3_bucket: (document.getElementById('s3_bucket') as HTMLInputElement)?.value,
+                                        s3_access_key: (document.getElementById('s3_access_key') as HTMLInputElement)?.value,
+                                        s3_secret_key: (document.getElementById('s3_secret_key') as HTMLInputElement)?.value,
+                                        s3_region: (document.getElementById('s3_region') as HTMLInputElement)?.value,
+                                    };
+                                    try {
+                                        const token = api.getToken();
+                                        for (const [key, value] of Object.entries(settings)) {
+                                            if (value !== undefined && value !== '') {
+                                                await fetch(`${API_URL}/api/settings/${key}`, {
+                                                    method: 'PUT',
+                                                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({ value, category: 's3' }),
+                                                });
+                                            }
+                                        }
+                                        alert('S3 settings saved! Restart required.');
+                                    } catch (error) { console.error(error); }
+                                }}>Save S3 Settings</Button>
+                            </CardContent>
+                        </Card>
+                    </div>
                 )}
             </div>
         </div>
