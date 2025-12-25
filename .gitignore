@@ -41,3 +41,7 @@ apps/api/prisma/*.db-journal
 # Uploads (local storage)
 data/uploads/*
 !data/uploads/.gitkeep
+
+# Docker configuration
+docker/Caddyfile
+

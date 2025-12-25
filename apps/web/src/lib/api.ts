@@ -80,6 +80,25 @@ class ApiClient {
         return this.request(API_ROUTES.AUTH.ME);
     }
 
+    // Profile
+    async getProfile() {
+        return this.request('/api/users/me');
+    }
+
+    async updateProfile(data: { name?: string }) {
+        return this.request('/api/users/me', {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+        });
+    }
+
+    async changePassword(currentPassword: string, newPassword: string) {
+        return this.request('/api/users/me/password', {
+            method: 'PATCH',
+            body: JSON.stringify({ currentPassword, newPassword }),
+        });
+    }
+
     // Files
     async listFiles(folderId?: string) {
         const url = folderId
