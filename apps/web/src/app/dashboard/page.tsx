@@ -556,23 +556,17 @@ export default function DashboardPage() {
                                                     </>
                                                 )}
                                             </div>
-                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                                                 <Button variant="ghost" size="icon" onClick={() => setPreviewFile(file)} title="Preview">
                                                     <Eye className="h-4 w-4" />
                                                 </Button>
-                                                <Button variant="ghost" size="icon" onClick={() => setEditingFile(file.id)}>
-                                                    <Edit2 className="h-4 w-4" />
-                                                </Button>
-                                                <Button variant="ghost" size="icon" onClick={() => setMoveItem({ id: file.id, name: file.name, type: 'file' })} title="Move">
-                                                    <Move className="h-4 w-4" />
-                                                </Button>
-                                                <Button variant="ghost" size="icon" onClick={() => setShareModal({ fileId: file.id, name: file.name })}>
+                                                <Button variant="ghost" size="icon" onClick={() => setShareModal({ fileId: file.id, name: file.name })} title="Share">
                                                     <Share2 className="h-4 w-4" />
                                                 </Button>
-                                                <Button variant="ghost" size="icon" onClick={() => window.open(`/api/files/${file.id}/download`, '_blank')}>
+                                                <Button variant="ghost" size="icon" onClick={() => window.open(`/api/files/${file.id}/download`, '_blank')} title="Download">
                                                     <Download className="h-4 w-4" />
                                                 </Button>
-                                                <Button variant="ghost" size="icon" onClick={() => handleDeleteFile(file.id)}>
+                                                <Button variant="ghost" size="icon" onClick={() => handleDeleteFile(file.id)} title="Delete">
                                                     <Trash2 className="h-4 w-4 text-red-500" />
                                                 </Button>
                                             </div>
