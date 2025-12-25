@@ -155,6 +155,7 @@ class ApiClient {
 
     async createShare(fileId?: string, folderId?: string, options: {
         visibility?: 'PUBLIC' | 'PRIVATE';
+        customSlug?: string;
         password?: string;
         expiresAt?: string;
         maxDownloads?: number;
