@@ -57,6 +57,7 @@ export class SharesService {
         return this.prisma.share.findUnique({
             where: { slug },
             include: {
+                user: { select: { id: true, enabled: true } },
                 file: true,
                 folder: { include: { files: true } },
             },
@@ -80,6 +81,11 @@ export class SharesService {
 
         if (!share.enabled) {
             throw new ForbiddenException('Share is disabled');
+        }
+
+        // Block access if owner account is disabled
+        if (share.user && !share.user.enabled) {
+            throw new ForbiddenException('Share owner account is disabled');
         }
 
         if (share.expiresAt && share.expiresAt < new Date()) {

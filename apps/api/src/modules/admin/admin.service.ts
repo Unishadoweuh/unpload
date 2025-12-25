@@ -53,7 +53,7 @@ export class AdminService {
         return this.usersService.findAll(page, limit);
     }
 
-    async updateUser(id: string, data: { name?: string; role?: 'ADMIN' | 'USER' }) {
+    async updateUser(id: string, data: { name?: string; role?: 'ADMIN' | 'USER'; enabled?: boolean }) {
         return this.usersService.update(id, data);
     }
 

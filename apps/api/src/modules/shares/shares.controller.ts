@@ -6,6 +6,7 @@ import {
     Delete,
     Param,
     Body,
+    Headers,
     UseGuards,
     Res,
     StreamableFile,
@@ -106,10 +107,10 @@ export class SharesController {
     @ApiOperation({ summary: 'Download shared file' })
     async download(
         @Param('slug') slug: string,
-        @Body() body: { password?: string },
+        @Headers('x-share-password') password: string,
         @Res({ passthrough: true }) res: Response,
     ): Promise<StreamableFile> {
-        const { stream, file } = await this.sharesService.download(slug, body?.password);
+        const { stream, file } = await this.sharesService.download(slug, password || undefined);
 
         res.set({
             'Content-Type': file.mimeType,
