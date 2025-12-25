@@ -1,0 +1,64 @@
+# UnPload Production Docker Compose
+# Deploy without registry - images loaded locally
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: unpload-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-unpload}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME:-unpload}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-unpload} -d ${DB_NAME:-unpload}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - unpload-network
+
+  api:
+    image: unpload-api:latest
+    container_name: unpload-api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${DB_USER:-unpload}:${DB_PASSWORD}@db:5432/${DB_NAME:-unpload}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      STORAGE_PATH: /data/uploads
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+    volumes:
+      - uploads_data:/data/uploads
+    ports:
+      - "4000:4000"
+    networks:
+      - unpload-network
+
+  web:
+    image: unpload-web:latest
+    container_name: unpload-web
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      NEXT_PUBLIC_API_URL: ${API_URL:-http://api:4000}
+    ports:
+      - "3000:3000"
+    networks:
+      - unpload-network
+
+volumes:
+  postgres_data:
+  uploads_data:
+
+
+networks:
+  unpload-network:
+    driver: bridge
