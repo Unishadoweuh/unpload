@@ -67,6 +67,11 @@ export default function DashboardPage() {
     const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
     const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
     const [selectedFolders, setSelectedFolders] = useState<Set<string>>(new Set());
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const triggerFileUpload = () => {
+        fileInputRef.current?.click();
+    };
 
     useEffect(() => {
         const token = api.getToken();
@@ -380,28 +385,27 @@ export default function DashboardPage() {
                                 sortOrder={sortOrder}
                                 onSort={(f, o) => { setSortField(f); setSortOrder(o); }}
                             />
-                            <label className="cursor-pointer">
-                                <input
-                                    type="file"
-                                    multiple
-                                    className="hidden"
-                                    onChange={handleFileUpload}
-                                    disabled={uploading}
-                                />
-                                <Button disabled={uploading}>
-                                    {uploading ? (
-                                        <>
-                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                                            Uploading...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Plus className="h-4 w-4 mr-2" />
-                                            Upload
-                                        </>
-                                    )}
-                                </Button>
-                            </label>
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                multiple
+                                className="hidden"
+                                onChange={handleFileUpload}
+                                disabled={uploading}
+                            />
+                            <Button disabled={uploading} onClick={triggerFileUpload}>
+                                {uploading ? (
+                                    <>
+                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                                        Uploading...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Plus className="h-4 w-4 mr-2" />
+                                        Upload
+                                    </>
+                                )}
+                            </Button>
                         </div>
                     </div>
 
@@ -440,18 +444,10 @@ export default function DashboardPage() {
                                 {searchQuery ? 'Try a different search term' : 'Upload your first file or drag & drop anywhere'}
                             </p>
                             {!searchQuery && (
-                                <label className="cursor-pointer">
-                                    <input
-                                        type="file"
-                                        multiple
-                                        className="hidden"
-                                        onChange={handleFileUpload}
-                                    />
-                                    <Button size="lg">
-                                        <Upload className="h-5 w-5 mr-2" />
-                                        Upload Now
-                                    </Button>
-                                </label>
+                                <Button size="lg" onClick={triggerFileUpload}>
+                                    <Upload className="h-5 w-5 mr-2" />
+                                    Upload Now
+                                </Button>
                             )}
                         </Card>
                     ) : (
