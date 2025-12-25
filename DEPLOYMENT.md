@@ -14,6 +14,8 @@ Complete guide for deploying UnPload in production environments.
 ### 1. Clone Repository
 ```bash
 git clone https://lab.unishadow.ovh/Unishadow/unpload.git
+(or)
+git clone https://github.com/Unishadoweuh/unpload.git
 cd unpload
 ```
 

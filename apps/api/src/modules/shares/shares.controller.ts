@@ -85,12 +85,17 @@ export class SharesController {
             return { error: 'Share not found' };
         }
 
+        // Increment view count
+        await this.sharesService.incrementViewCount(share.id);
+
         // Don't expose sensitive info
         return {
             slug: share.slug,
             visibility: share.visibility,
             hasPassword: !!share.passwordHash,
             expiresAt: share.expiresAt,
+            viewCount: share.viewCount + 1,
+            downloadCount: share.downloadCount,
             file: share.file ? { name: share.file.name, size: share.file.size, mimeType: share.file.mimeType } : null,
             folder: share.folder ? { name: share.folder.name } : null,
         };

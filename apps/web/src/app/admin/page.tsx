@@ -348,6 +348,48 @@ export default function AdminPage() {
                             <CardDescription>Configure platform-wide settings</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
+                            {/* Logo Upload */}
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Application Logo</label>
+                                <div className="flex items-center gap-4">
+                                    <div className="w-16 h-16 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg flex items-center justify-center bg-gray-50 dark:bg-gray-800 overflow-hidden">
+                                        <span className="text-xs text-gray-400">Logo</span>
+                                    </div>
+                                    <div className="flex-1">
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            className="hidden"
+                                            id="logo-upload"
+                                            onChange={async (e) => {
+                                                const file = e.target.files?.[0];
+                                                if (!file) return;
+                                                const formData = new FormData();
+                                                formData.append('logo', file);
+                                                try {
+                                                    const token = api.getToken();
+                                                    await fetch(`${API_URL}/api/settings/logo`, {
+                                                        method: 'POST',
+                                                        headers: { 'Authorization': `Bearer ${token}` },
+                                                        body: formData,
+                                                    });
+                                                    alert('Logo uploaded successfully!');
+                                                    window.location.reload();
+                                                } catch (error) {
+                                                    console.error('Logo upload failed:', error);
+                                                    alert('Logo upload failed');
+                                                }
+                                            }}
+                                        />
+                                        <label htmlFor="logo-upload" className="cursor-pointer">
+                                            <span className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 h-10 px-4 py-2">
+                                                Upload Logo
+                                            </span>
+                                        </label>
+                                        <p className="text-xs text-gray-500 mt-1">PNG or SVG, max 1MB. Used in header and favicon.</p>
+                                    </div>
+                                </div>
+                            </div>
                             <div className="space-y-2">
                                 <label className="text-sm font-medium">Application Name</label>
                                 <Input defaultValue="UnPload" />

@@ -167,4 +167,11 @@ export class SharesService {
 
         await this.prisma.share.delete({ where: { id } });
     }
+
+    async incrementViewCount(id: string): Promise<void> {
+        await this.prisma.share.update({
+            where: { id },
+            data: { viewCount: { increment: 1 } },
+        });
+    }
 }
