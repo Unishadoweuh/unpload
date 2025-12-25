@@ -351,11 +351,17 @@ export default function DashboardPage() {
                                 </div>
                             </CardContent>
                         </Card>
-                        <Card>
+                        <Card className={quotaPercent >= 95 ? 'border-red-500 border-2' : quotaPercent >= 80 ? 'border-orange-500 border-2' : ''}>
                             <CardContent className="pt-6">
                                 <div className="flex items-center gap-4">
-                                    <div className="p-3 rounded-lg bg-blue-100 dark:bg-blue-900/50">
-                                        <Upload className="h-6 w-6 text-blue-600" />
+                                    <div className={`p-3 rounded-lg ${quotaPercent >= 95 ? 'bg-red-100 dark:bg-red-900/50' :
+                                            quotaPercent >= 80 ? 'bg-orange-100 dark:bg-orange-900/50' :
+                                                'bg-blue-100 dark:bg-blue-900/50'
+                                        }`}>
+                                        <Upload className={`h-6 w-6 ${quotaPercent >= 95 ? 'text-red-600' :
+                                                quotaPercent >= 80 ? 'text-orange-600' :
+                                                    'text-blue-600'
+                                            }`} />
                                     </div>
                                     <div>
                                         <p className="text-sm text-gray-500 dark:text-gray-400">Storage Used</p>
@@ -368,13 +374,28 @@ export default function DashboardPage() {
                                     <div className="mt-3">
                                         <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                                             <div
-                                                className="bg-primary-600 h-2 rounded-full transition-all"
+                                                className={`h-2 rounded-full transition-all ${quotaPercent >= 95 ? 'bg-red-600' :
+                                                        quotaPercent >= 80 ? 'bg-orange-500' :
+                                                            'bg-primary-600'
+                                                    }`}
                                                 style={{ width: `${Math.min(quotaPercent, 100)}%` }}
                                             />
                                         </div>
-                                        <p className="text-xs text-gray-500 mt-1">
-                                            {formatBytes(user.quota.usedBytes)} / {formatBytes(user.quota.maxBytes)}
-                                        </p>
+                                        <div className="flex justify-between items-center mt-1">
+                                            <p className="text-xs text-gray-500">
+                                                {formatBytes(user.quota.usedBytes)} / {formatBytes(user.quota.maxBytes)}
+                                            </p>
+                                            {quotaPercent >= 95 && (
+                                                <span className="text-xs font-medium text-red-600 dark:text-red-400">
+                                                    ⚠️ Storage full!
+                                                </span>
+                                            )}
+                                            {quotaPercent >= 80 && quotaPercent < 95 && (
+                                                <span className="text-xs font-medium text-orange-600 dark:text-orange-400">
+                                                    ⚠️ {Math.round(quotaPercent)}% used
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
                                 )}
                             </CardContent>

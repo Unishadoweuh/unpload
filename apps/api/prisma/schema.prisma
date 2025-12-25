@@ -152,3 +152,33 @@ model Session {
   @@index([userId])
   @@map("sessions")
 }
+
+enum ActivityAction {
+  UPLOAD
+  DOWNLOAD
+  DELETE
+  SHARE_CREATE
+  SHARE_DELETE
+  FOLDER_CREATE
+  FOLDER_DELETE
+  LOGIN
+  LOGOUT
+  PASSWORD_CHANGE
+  PROFILE_UPDATE
+}
+
+model ActivityLog {
+  id        String         @id @default(uuid())
+  userId    String         @map("user_id")
+  action    ActivityAction
+  details   Json?
+  ipAddress String?        @map("ip_address")
+  userAgent String?        @map("user_agent")
+  createdAt DateTime       @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("activity_logs")
+}
+

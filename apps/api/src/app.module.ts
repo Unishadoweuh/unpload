@@ -10,6 +10,7 @@ import { AdminModule } from './modules/admin/admin.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { WizardModule } from './modules/wizard/wizard.module';
 import { TrashModule } from './modules/trash/trash.module';
+import { ActivityModule } from './modules/activity/activity.module';
 import { StorageModule } from './storage/storage.module';
 import { HealthModule } from './health/health.module';
 
@@ -30,7 +31,9 @@ import { HealthModule } from './health/health.module';
         SettingsModule,
         WizardModule,
         TrashModule,
+        ActivityModule,
         HealthModule,
     ],
 })
 export class AppModule { }
+
