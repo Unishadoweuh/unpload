@@ -73,6 +73,7 @@ export class FilesService {
             where: {
                 userId,
                 folderId: folderId ?? null,
+                deletedAt: null, // Exclude soft-deleted files
             },
             orderBy: { createdAt: 'desc' },
         });
@@ -146,15 +147,10 @@ export class FilesService {
             throw new ForbiddenException('Access denied');
         }
 
-        // Delete from storage
-        await this.storage.delete(file.storagePath);
-
-        // Delete record
-        await this.prisma.file.delete({
+        // Soft delete - just set deletedAt timestamp
+        await this.prisma.file.update({
             where: { id },
+            data: { deletedAt: new Date() },
         });
-
-        // Update quota
-        await this.usersService.updateQuotaUsage(userId, -file.size);
     }
 }

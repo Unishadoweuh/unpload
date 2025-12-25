@@ -98,7 +98,7 @@ export class UsersService {
         };
     }
 
-    async update(id: string, data: Partial<{ name: string; role: 'ADMIN' | 'USER' }>) {
+    async update(id: string, data: Partial<{ name: string; role: 'ADMIN' | 'USER'; enabled: boolean }>) {
         return this.prisma.user.update({
             where: { id },
             data,

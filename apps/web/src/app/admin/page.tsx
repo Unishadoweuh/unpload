@@ -27,7 +27,7 @@ interface User {
 interface Stats {
     totalUsers: number;
     totalFiles: number;
-    totalStorage: number | string;
+    totalStorageUsed: number | string;
 }
 
 type Tab = 'users' | 'settings';
@@ -205,7 +205,7 @@ export default function AdminPage() {
                                     </div>
                                     <div>
                                         <p className="text-sm text-gray-500 dark:text-gray-400">Total Storage</p>
-                                        <p className="text-2xl font-bold">{formatBytes(stats.totalStorage)}</p>
+                                        <p className="text-2xl font-bold">{formatBytes(stats.totalStorageUsed)}</p>
                                     </div>
                                 </div>
                             </CardContent>
@@ -294,6 +294,33 @@ export default function AdminPage() {
                                                     ) : (
                                                         <CheckCircle className="h-4 w-4 text-green-500" />
                                                     )}
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={async () => {
+                                                        const currentGB = user.quota ? Math.round(Number(user.quota.maxBytes) / (1024 * 1024 * 1024)) : 5;
+                                                        const newGB = prompt(`Enter new storage quota in GB (current: ${currentGB} GB):`, String(currentGB));
+                                                        if (newGB && !isNaN(Number(newGB))) {
+                                                            try {
+                                                                const token = api.getToken();
+                                                                await fetch(`${API_URL}/api/admin/users/${user.id}/quota`, {
+                                                                    method: 'PATCH',
+                                                                    headers: {
+                                                                        'Authorization': `Bearer ${token}`,
+                                                                        'Content-Type': 'application/json',
+                                                                    },
+                                                                    body: JSON.stringify({ maxBytes: String(Number(newGB) * 1024 * 1024 * 1024) }),
+                                                                });
+                                                                await loadData();
+                                                            } catch (error) {
+                                                                console.error('Failed to update quota:', error);
+                                                            }
+                                                        }
+                                                    }}
+                                                    title="Edit quota"
+                                                >
+                                                    <Edit2 className="h-4 w-4 text-blue-500" />
                                                 </Button>
                                                 <Button
                                                     variant="ghost"

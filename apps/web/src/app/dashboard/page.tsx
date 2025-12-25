@@ -399,6 +399,23 @@ export default function DashboardPage() {
                                 onChange={handleFileUpload}
                                 disabled={uploading}
                             />
+                            <Button
+                                variant="outline"
+                                onClick={async () => {
+                                    const name = prompt('Enter folder name:');
+                                    if (name?.trim()) {
+                                        try {
+                                            await api.createFolder(name.trim(), currentFolder || undefined);
+                                            await loadData();
+                                        } catch (error) {
+                                            console.error('Failed to create folder:', error);
+                                        }
+                                    }
+                                }}
+                            >
+                                <Folder className="h-4 w-4 mr-2" />
+                                New Folder
+                            </Button>
                             <Button disabled={uploading} onClick={triggerFileUpload}>
                                 {uploading ? (
                                     <>

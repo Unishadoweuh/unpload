@@ -9,6 +9,7 @@ import { SharesModule } from './modules/shares/shares.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { WizardModule } from './modules/wizard/wizard.module';
+import { TrashModule } from './modules/trash/trash.module';
 import { StorageModule } from './storage/storage.module';
 import { HealthModule } from './health/health.module';
 
@@ -28,6 +29,7 @@ import { HealthModule } from './health/health.module';
         AdminModule,
         SettingsModule,
         WizardModule,
+        TrashModule,
         HealthModule,
     ],
 })
