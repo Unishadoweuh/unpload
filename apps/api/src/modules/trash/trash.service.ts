@@ -97,7 +97,7 @@ export class TrashService {
         }
 
         // Delete from storage
-        await this.storage.delete(file.storageKey);
+        await this.storage.delete(file.storagePath);
 
         // Update user quota
         await this.prisma.quota.update({
@@ -131,7 +131,7 @@ export class TrashService {
         });
 
         for (const file of files) {
-            await this.storage.delete(file.storageKey);
+            await this.storage.delete(file.storagePath);
             await this.prisma.quota.update({
                 where: { userId },
                 data: { usedBytes: { decrement: file.size } },
@@ -158,7 +158,7 @@ export class TrashService {
 
         // Delete all files in trash
         for (const file of files) {
-            await this.storage.delete(file.storageKey);
+            await this.storage.delete(file.storagePath);
             await this.prisma.quota.update({
                 where: { userId },
                 data: { usedBytes: { decrement: file.size } },

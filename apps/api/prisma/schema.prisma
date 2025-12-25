@@ -31,6 +31,7 @@ model User {
   passwordHash  String?        @map("password_hash")
   name          String
   role          UserRole       @default(USER)
+  enabled       Boolean        @default(true)
   oauthProvider OAuthProvider? @map("oauth_provider")
   oauthId       String?        @map("oauth_id")
   createdAt     DateTime       @default(now()) @map("created_at")
@@ -62,9 +63,10 @@ model Quota {
 model Folder {
   id        String   @id @default(uuid())
   userId    String   @map("user_id")
-  parentId  String?  @map("parent_id")
+  parentId  String?   @map("parent_id")
   name      String
-  createdAt DateTime @default(now()) @map("created_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  deletedAt DateTime? @map("deleted_at")
 
   // Relations
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -88,8 +90,9 @@ model File {
   size         BigInt
   storagePath  String   @map("storage_path")
   checksum     String
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
 
   // Relations
   user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
