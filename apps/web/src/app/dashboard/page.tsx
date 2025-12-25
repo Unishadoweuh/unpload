@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Upload, Folder, LogOut, Plus, FileIcon, Download, Trash2, Link2, Shield, Share2, Edit2 } from 'lucide-react';
+import { Upload, Folder, LogOut, Plus, FileIcon, Download, Trash2, Link2, Shield, Share2, Edit2, Eye, CheckSquare, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ShareModal } from '@/components/share-modal';
@@ -10,6 +10,9 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { DropOverlay } from '@/components/drop-zone';
 import { Breadcrumb } from '@/components/breadcrumb';
 import { InlineEdit } from '@/components/inline-edit';
+import { FilePreview } from '@/components/file-preview';
+import { SearchBar } from '@/components/search-bar';
+import { SortDropdown, SortField, SortOrder } from '@/components/sort-dropdown';
 import { api } from '@/lib/api';
 import { formatBytes, formatDate, getFileIcon } from '@/lib/utils';
 
@@ -56,6 +59,12 @@ export default function DashboardPage() {
     const [shareModal, setShareModal] = useState<{ fileId?: string; folderId?: string; name: string } | null>(null);
     const [editingFile, setEditingFile] = useState<string | null>(null);
     const [editingFolder, setEditingFolder] = useState<string | null>(null);
+    const [previewFile, setPreviewFile] = useState<FileData | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [sortField, setSortField] = useState<SortField>('date');
+    const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+    const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
+    const [selectedFolders, setSelectedFolders] = useState<Set<string>>(new Set());
 
     useEffect(() => {
         const token = api.getToken();
@@ -69,6 +78,8 @@ export default function DashboardPage() {
     const loadData = async () => {
         try {
             setLoading(true);
+            setSelectedFiles(new Set());
+            setSelectedFolders(new Set());
             const [userData, filesData, foldersData] = await Promise.all([
                 api.getMe(),
                 api.listFiles(currentFolder || undefined),
@@ -85,12 +96,47 @@ export default function DashboardPage() {
         }
     };
 
+    // Filter and sort
+    const filteredAndSortedItems = useMemo(() => {
+        let filteredFiles = files;
+        let filteredFolders = folders;
+
+        // Search filter
+        if (searchQuery) {
+            const query = searchQuery.toLowerCase();
+            filteredFiles = files.filter(f => f.name.toLowerCase().includes(query));
+            filteredFolders = folders.filter(f => f.name.toLowerCase().includes(query));
+        }
+
+        // Sort
+        const sortItems = <T extends { name: string; createdAt: string; size?: number }>(items: T[]) => {
+            return [...items].sort((a, b) => {
+                let comparison = 0;
+                switch (sortField) {
+                    case 'name':
+                        comparison = a.name.localeCompare(b.name);
+                        break;
+                    case 'date':
+                        comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+                        break;
+                    case 'size':
+                        comparison = (a.size || 0) - (b.size || 0);
+                        break;
+                }
+                return sortOrder === 'asc' ? comparison : -comparison;
+            });
+        };
+
+        return {
+            files: sortItems(filteredFiles),
+            folders: sortItems(filteredFolders),
+        };
+    }, [files, folders, searchQuery, sortField, sortOrder]);
+
     const navigateToFolder = useCallback(async (folderId: string | null, folderName?: string) => {
         if (folderId === null) {
-            // Going to root
             setBreadcrumbs([{ id: null, name: 'My Files' }]);
         } else if (folderName) {
-            // Push new folder to breadcrumb
             setBreadcrumbs(prev => [...prev, { id: folderId, name: folderName }]);
         }
         setCurrentFolder(folderId);
@@ -119,10 +165,10 @@ export default function DashboardPage() {
         }
     };
 
-    const handleDroppedFiles = async (files: File[]) => {
+    const handleDroppedFiles = async (droppedFiles: File[]) => {
         setUploading(true);
         try {
-            await api.uploadFiles(files, currentFolder || undefined);
+            await api.uploadFiles(droppedFiles, currentFolder || undefined);
             await loadData();
         } catch (error) {
             console.error('Upload failed:', error);
@@ -145,6 +191,21 @@ export default function DashboardPage() {
         }
     };
 
+    const handleBulkDelete = async () => {
+        if (selectedFiles.size === 0 && selectedFolders.size === 0) return;
+        if (!confirm(`Delete ${selectedFiles.size + selectedFolders.size} selected items?`)) return;
+
+        try {
+            await Promise.all([
+                ...Array.from(selectedFiles).map(id => api.deleteFile(id)),
+                ...Array.from(selectedFolders).map(id => api.deleteFolder(id)),
+            ]);
+            await loadData();
+        } catch (error) {
+            console.error('Bulk delete failed:', error);
+        }
+    };
+
     const handleRenameFile = async (fileId: string, newName: string) => {
         try {
             await api.renameFile(fileId, newName);
@@ -164,6 +225,39 @@ export default function DashboardPage() {
             console.error('Rename failed:', error);
         }
     };
+
+    const toggleFileSelection = (fileId: string) => {
+        setSelectedFiles(prev => {
+            const next = new Set(prev);
+            if (next.has(fileId)) next.delete(fileId);
+            else next.add(fileId);
+            return next;
+        });
+    };
+
+    const toggleFolderSelection = (folderId: string) => {
+        setSelectedFolders(prev => {
+            const next = new Set(prev);
+            if (next.has(folderId)) next.delete(folderId);
+            else next.add(folderId);
+            return next;
+        });
+    };
+
+    const selectAll = () => {
+        setSelectedFiles(new Set(filteredAndSortedItems.files.map(f => f.id)));
+        setSelectedFolders(new Set(filteredAndSortedItems.folders.map(f => f.id)));
+    };
+
+    const clearSelection = () => {
+        setSelectedFiles(new Set());
+        setSelectedFolders(new Set());
+    };
+
+    const hasSelection = selectedFiles.size > 0 || selectedFolders.size > 0;
+    const allSelected = selectedFiles.size === filteredAndSortedItems.files.length &&
+        selectedFolders.size === filteredAndSortedItems.folders.length &&
+        (filteredAndSortedItems.files.length + filteredAndSortedItems.folders.length) > 0;
 
     if (loading) {
         return (
@@ -269,10 +363,16 @@ export default function DashboardPage() {
                         </Card>
                     </div>
 
-                    {/* Breadcrumb & Actions */}
-                    <div className="flex justify-between items-center mb-6">
+                    {/* Toolbar: Breadcrumb, Search, Sort, Actions */}
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                         <Breadcrumb items={breadcrumbs} onNavigate={navigateToBreadcrumb} />
-                        <div className="flex gap-3">
+                        <div className="flex items-center gap-3 w-full sm:w-auto">
+                            <SearchBar value={searchQuery} onChange={setSearchQuery} />
+                            <SortDropdown
+                                sortField={sortField}
+                                sortOrder={sortOrder}
+                                onSort={(f, o) => { setSortField(f); setSortOrder(o); }}
+                            />
                             <label className="cursor-pointer">
                                 <input
                                     type="file"
@@ -290,7 +390,7 @@ export default function DashboardPage() {
                                     ) : (
                                         <>
                                             <Plus className="h-4 w-4 mr-2" />
-                                            Upload Files
+                                            Upload
                                         </>
                                     )}
                                 </Button>
@@ -298,49 +398,90 @@ export default function DashboardPage() {
                         </div>
                     </div>
 
+                    {/* Selection toolbar */}
+                    {(filteredAndSortedItems.files.length + filteredAndSortedItems.folders.length) > 0 && (
+                        <div className="flex items-center gap-4 mb-4 p-2 bg-gray-100 dark:bg-gray-800 rounded-lg">
+                            <button
+                                onClick={allSelected ? clearSelection : selectAll}
+                                className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 hover:text-primary-600"
+                            >
+                                {allSelected ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
+                                {allSelected ? 'Deselect All' : 'Select All'}
+                            </button>
+                            {hasSelection && (
+                                <>
+                                    <span className="text-sm text-gray-500">
+                                        {selectedFiles.size + selectedFolders.size} selected
+                                    </span>
+                                    <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
+                                        <Trash2 className="h-4 w-4 mr-1" />
+                                        Delete
+                                    </Button>
+                                </>
+                            )}
+                        </div>
+                    )}
+
                     {/* Files Grid */}
-                    {files.length === 0 && folders.length === 0 ? (
+                    {filteredAndSortedItems.files.length === 0 && filteredAndSortedItems.folders.length === 0 ? (
                         <Card className="p-12 text-center">
                             <Upload className="h-16 w-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
                             <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
-                                No files yet
+                                {searchQuery ? 'No files found' : 'No files yet'}
                             </h3>
                             <p className="text-gray-500 dark:text-gray-400 mb-6">
-                                Upload your first file or drag & drop anywhere
+                                {searchQuery ? 'Try a different search term' : 'Upload your first file or drag & drop anywhere'}
                             </p>
-                            <label className="cursor-pointer">
-                                <input
-                                    type="file"
-                                    multiple
-                                    className="hidden"
-                                    onChange={handleFileUpload}
-                                />
-                                <Button size="lg">
-                                    <Upload className="h-5 w-5 mr-2" />
-                                    Upload Now
-                                </Button>
-                            </label>
+                            {!searchQuery && (
+                                <label className="cursor-pointer">
+                                    <input
+                                        type="file"
+                                        multiple
+                                        className="hidden"
+                                        onChange={handleFileUpload}
+                                    />
+                                    <Button size="lg">
+                                        <Upload className="h-5 w-5 mr-2" />
+                                        Upload Now
+                                    </Button>
+                                </label>
+                            )}
                         </Card>
                     ) : (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                            {folders.map((folder) => (
+                            {filteredAndSortedItems.folders.map((folder) => (
                                 <Card
                                     key={folder.id}
-                                    className="hover:shadow-md transition-shadow cursor-pointer group"
-                                    onClick={() => navigateToFolder(folder.id, folder.name)}
+                                    className={`hover:shadow-md transition-shadow cursor-pointer group ${selectedFolders.has(folder.id) ? 'ring-2 ring-primary-500' : ''
+                                        }`}
                                 >
                                     <CardContent className="p-4">
                                         <div className="flex items-center gap-3">
-                                            <div className="p-2 rounded-lg bg-yellow-100 dark:bg-yellow-900/50">
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); toggleFolderSelection(folder.id); }}
+                                                className="text-gray-400 hover:text-primary-600"
+                                            >
+                                                {selectedFolders.has(folder.id) ? (
+                                                    <CheckSquare className="h-5 w-5 text-primary-600" />
+                                                ) : (
+                                                    <Square className="h-5 w-5" />
+                                                )}
+                                            </button>
+                                            <div
+                                                className="p-2 rounded-lg bg-yellow-100 dark:bg-yellow-900/50"
+                                                onClick={() => navigateToFolder(folder.id, folder.name)}
+                                            >
                                                 <Folder className="h-8 w-8 text-yellow-600" />
                                             </div>
-                                            <div className="flex-1 min-w-0">
+                                            <div className="flex-1 min-w-0" onClick={() => navigateToFolder(folder.id, folder.name)}>
                                                 {editingFolder === folder.id ? (
-                                                    <InlineEdit
-                                                        value={folder.name}
-                                                        onSave={(name) => handleRenameFolder(folder.id, name)}
-                                                        onCancel={() => setEditingFolder(null)}
-                                                    />
+                                                    <div onClick={e => e.stopPropagation()}>
+                                                        <InlineEdit
+                                                            value={folder.name}
+                                                            onSave={(name) => handleRenameFolder(folder.id, name)}
+                                                            onCancel={() => setEditingFolder(null)}
+                                                        />
+                                                    </div>
                                                 ) : (
                                                     <>
                                                         <p className="font-medium truncate">{folder.name}</p>
@@ -348,20 +489,11 @@ export default function DashboardPage() {
                                                     </>
                                                 )}
                                             </div>
-                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => setEditingFolder(folder.id)}
-                                                    title="Rename"
-                                                >
+                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+                                                <Button variant="ghost" size="icon" onClick={() => setEditingFolder(folder.id)}>
                                                     <Edit2 className="h-4 w-4" />
                                                 </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => setShareModal({ folderId: folder.id, name: folder.name })}
-                                                >
+                                                <Button variant="ghost" size="icon" onClick={() => setShareModal({ folderId: folder.id, name: folder.name })}>
                                                     <Share2 className="h-4 w-4" />
                                                 </Button>
                                             </div>
@@ -369,11 +501,30 @@ export default function DashboardPage() {
                                     </CardContent>
                                 </Card>
                             ))}
-                            {files.map((file) => (
-                                <Card key={file.id} className="hover:shadow-md transition-shadow group">
+                            {filteredAndSortedItems.files.map((file) => (
+                                <Card
+                                    key={file.id}
+                                    className={`hover:shadow-md transition-shadow group ${selectedFiles.has(file.id) ? 'ring-2 ring-primary-500' : ''
+                                        }`}
+                                >
                                     <CardContent className="p-4">
                                         <div className="flex items-center gap-3">
-                                            <div className="text-3xl">{getFileIcon(file.mimeType)}</div>
+                                            <button
+                                                onClick={() => toggleFileSelection(file.id)}
+                                                className="text-gray-400 hover:text-primary-600"
+                                            >
+                                                {selectedFiles.has(file.id) ? (
+                                                    <CheckSquare className="h-5 w-5 text-primary-600" />
+                                                ) : (
+                                                    <Square className="h-5 w-5" />
+                                                )}
+                                            </button>
+                                            <div
+                                                className="text-3xl cursor-pointer hover:scale-110 transition-transform"
+                                                onClick={() => setPreviewFile(file)}
+                                            >
+                                                {getFileIcon(file.mimeType)}
+                                            </div>
                                             <div className="flex-1 min-w-0">
                                                 {editingFile === file.id ? (
                                                     <InlineEdit
@@ -386,7 +537,7 @@ export default function DashboardPage() {
                                                         <p
                                                             className="font-medium truncate cursor-pointer hover:text-primary-600"
                                                             onDoubleClick={() => setEditingFile(file.id)}
-                                                            title="Double-click to rename"
+                                                            onClick={() => setPreviewFile(file)}
                                                         >
                                                             {file.name}
                                                         </p>
@@ -397,33 +548,19 @@ export default function DashboardPage() {
                                                 )}
                                             </div>
                                             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => setEditingFile(file.id)}
-                                                    title="Rename"
-                                                >
+                                                <Button variant="ghost" size="icon" onClick={() => setPreviewFile(file)} title="Preview">
+                                                    <Eye className="h-4 w-4" />
+                                                </Button>
+                                                <Button variant="ghost" size="icon" onClick={() => setEditingFile(file.id)}>
                                                     <Edit2 className="h-4 w-4" />
                                                 </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => setShareModal({ fileId: file.id, name: file.name })}
-                                                >
+                                                <Button variant="ghost" size="icon" onClick={() => setShareModal({ fileId: file.id, name: file.name })}>
                                                     <Share2 className="h-4 w-4" />
                                                 </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => window.open(`/api/files/${file.id}/download`, '_blank')}
-                                                >
+                                                <Button variant="ghost" size="icon" onClick={() => window.open(`/api/files/${file.id}/download`, '_blank')}>
                                                     <Download className="h-4 w-4" />
                                                 </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => handleDeleteFile(file.id)}
-                                                >
+                                                <Button variant="ghost" size="icon" onClick={() => handleDeleteFile(file.id)}>
                                                     <Trash2 className="h-4 w-4 text-red-500" />
                                                 </Button>
                                             </div>
@@ -434,6 +571,17 @@ export default function DashboardPage() {
                         </div>
                     )}
                 </div>
+
+                {/* File Preview Modal */}
+                {previewFile && (
+                    <FilePreview
+                        fileId={previewFile.id}
+                        fileName={previewFile.name}
+                        mimeType={previewFile.mimeType}
+                        size={previewFile.size}
+                        onClose={() => setPreviewFile(null)}
+                    />
+                )}
 
                 {/* Share Modal */}
                 {shareModal && (
