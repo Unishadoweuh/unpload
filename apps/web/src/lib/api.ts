@@ -42,6 +42,14 @@ class ApiClient {
         });
 
         if (!response.ok) {
+            // If 401, token is invalid/expired - clear it
+            if (response.status === 401) {
+                this.setToken(null);
+                // Redirect to login if in browser
+                if (typeof window !== 'undefined') {
+                    window.location.href = '/auth/login';
+                }
+            }
             const error = await response.json().catch(() => ({ message: 'Request failed' }));
             throw new Error(error.message || `HTTP ${response.status}`);
         }
@@ -78,6 +86,18 @@ class ApiClient {
 
     async getMe() {
         return this.request(API_ROUTES.AUTH.ME);
+    }
+
+    async isAuthenticated(): Promise<boolean> {
+        const token = this.getToken();
+        if (!token) return false;
+
+        try {
+            await this.getMe();
+            return true;
+        } catch {
+            return false;
+        }
     }
 
     // Profile
