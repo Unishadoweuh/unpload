@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Upload, Folder, LogOut, Plus, FileIcon, Download, Trash2, Link2, Shield, Share2, Edit2, Eye, CheckSquare, Square } from 'lucide-react';
+import { Upload, Folder, LogOut, Plus, FileIcon, Download, Trash2, Link2, Shield, Share2, Edit2, Eye, CheckSquare, Square, User, Keyboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ShareModal } from '@/components/share-modal';
@@ -13,6 +13,8 @@ import { InlineEdit } from '@/components/inline-edit';
 import { FilePreview } from '@/components/file-preview';
 import { SearchBar } from '@/components/search-bar';
 import { SortDropdown, SortField, SortOrder } from '@/components/sort-dropdown';
+import { KeyboardShortcutsModal } from '@/components/keyboard-shortcuts-modal';
+import { useDashboardShortcuts } from '@/hooks/use-keyboard-shortcuts';
 import { api } from '@/lib/api';
 import { formatBytes, formatDate, getFileIcon } from '@/lib/utils';
 
@@ -293,9 +295,14 @@ export default function DashboardPage() {
                                     </Button>
                                 )}
                                 <ThemeToggle />
-                                <span className="text-sm text-gray-600 dark:text-gray-400">
-                                    {user?.email}
-                                </span>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => router.push('/profile')}
+                                    title="Profile settings"
+                                >
+                                    <User className="h-5 w-5" />
+                                </Button>
                                 <Button variant="ghost" size="icon" onClick={handleLogout}>
                                     <LogOut className="h-5 w-5" />
                                 </Button>
