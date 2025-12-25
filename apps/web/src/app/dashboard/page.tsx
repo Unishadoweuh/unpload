@@ -1,13 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Upload, Folder, Share2, LogOut, Plus, FileIcon, Download, Trash2, Link2, Shield } from 'lucide-react';
+import { Upload, Folder, LogOut, Plus, FileIcon, Download, Trash2, Link2, Shield, Share2, Edit2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ShareModal } from '@/components/share-modal';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { DropOverlay } from '@/components/drop-zone';
+import { Breadcrumb } from '@/components/breadcrumb';
+import { InlineEdit } from '@/components/inline-edit';
 import { api } from '@/lib/api';
 import { formatBytes, formatDate, getFileIcon } from '@/lib/utils';
 
@@ -23,6 +25,7 @@ interface FolderData {
     id: string;
     name: string;
     createdAt: string;
+    parentId?: string | null;
 }
 
 interface UserData {
@@ -36,6 +39,11 @@ interface UserData {
     };
 }
 
+interface BreadcrumbItem {
+    id: string | null;
+    name: string;
+}
+
 export default function DashboardPage() {
     const router = useRouter();
     const [user, setUser] = useState<UserData | null>(null);
@@ -44,7 +52,10 @@ export default function DashboardPage() {
     const [loading, setLoading] = useState(true);
     const [uploading, setUploading] = useState(false);
     const [currentFolder, setCurrentFolder] = useState<string | null>(null);
+    const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbItem[]>([{ id: null, name: 'My Files' }]);
     const [shareModal, setShareModal] = useState<{ fileId?: string; folderId?: string; name: string } | null>(null);
+    const [editingFile, setEditingFile] = useState<string | null>(null);
+    const [editingFolder, setEditingFolder] = useState<string | null>(null);
 
     useEffect(() => {
         const token = api.getToken();
@@ -52,7 +63,6 @@ export default function DashboardPage() {
             router.push('/auth/login');
             return;
         }
-
         loadData();
     }, [currentFolder]);
 
@@ -75,6 +85,25 @@ export default function DashboardPage() {
         }
     };
 
+    const navigateToFolder = useCallback(async (folderId: string | null, folderName?: string) => {
+        if (folderId === null) {
+            // Going to root
+            setBreadcrumbs([{ id: null, name: 'My Files' }]);
+        } else if (folderName) {
+            // Push new folder to breadcrumb
+            setBreadcrumbs(prev => [...prev, { id: folderId, name: folderName }]);
+        }
+        setCurrentFolder(folderId);
+    }, []);
+
+    const navigateToBreadcrumb = useCallback((folderId: string | null) => {
+        const index = breadcrumbs.findIndex(b => b.id === folderId);
+        if (index !== -1) {
+            setBreadcrumbs(breadcrumbs.slice(0, index + 1));
+            setCurrentFolder(folderId);
+        }
+    }, [breadcrumbs]);
+
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const uploadFiles = e.target.files;
         if (!uploadFiles?.length) return;
@@ -82,6 +111,18 @@ export default function DashboardPage() {
         setUploading(true);
         try {
             await api.uploadFiles(Array.from(uploadFiles), currentFolder || undefined);
+            await loadData();
+        } catch (error) {
+            console.error('Upload failed:', error);
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const handleDroppedFiles = async (files: File[]) => {
+        setUploading(true);
+        try {
+            await api.uploadFiles(files, currentFolder || undefined);
             await loadData();
         } catch (error) {
             console.error('Upload failed:', error);
@@ -104,6 +145,26 @@ export default function DashboardPage() {
         }
     };
 
+    const handleRenameFile = async (fileId: string, newName: string) => {
+        try {
+            await api.renameFile(fileId, newName);
+            setEditingFile(null);
+            await loadData();
+        } catch (error) {
+            console.error('Rename failed:', error);
+        }
+    };
+
+    const handleRenameFolder = async (folderId: string, newName: string) => {
+        try {
+            await api.renameFolder(folderId, newName);
+            setEditingFolder(null);
+            await loadData();
+        } catch (error) {
+            console.error('Rename failed:', error);
+        }
+    };
+
     if (loading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
@@ -115,18 +176,6 @@ export default function DashboardPage() {
     const quotaPercent = user?.quota
         ? (Number(user.quota.usedBytes) / Number(user.quota.maxBytes)) * 100
         : 0;
-
-    const handleDroppedFiles = async (files: File[]) => {
-        setUploading(true);
-        try {
-            await api.uploadFiles(files, currentFolder || undefined);
-            await loadData();
-        } catch (error) {
-            console.error('Upload failed:', error);
-        } finally {
-            setUploading(false);
-        }
-    };
 
     return (
         <DropOverlay onDrop={handleDroppedFiles} disabled={uploading}>
@@ -220,9 +269,9 @@ export default function DashboardPage() {
                         </Card>
                     </div>
 
-                    {/* Upload Button */}
+                    {/* Breadcrumb & Actions */}
                     <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-lg font-semibold">My Files</h2>
+                        <Breadcrumb items={breadcrumbs} onNavigate={navigateToBreadcrumb} />
                         <div className="flex gap-3">
                             <label className="cursor-pointer">
                                 <input
@@ -257,7 +306,7 @@ export default function DashboardPage() {
                                 No files yet
                             </h3>
                             <p className="text-gray-500 dark:text-gray-400 mb-6">
-                                Upload your first file to get started
+                                Upload your first file or drag & drop anywhere
                             </p>
                             <label className="cursor-pointer">
                                 <input
@@ -277,8 +326,8 @@ export default function DashboardPage() {
                             {folders.map((folder) => (
                                 <Card
                                     key={folder.id}
-                                    className="hover:shadow-md transition-shadow cursor-pointer"
-                                    onClick={() => setCurrentFolder(folder.id)}
+                                    className="hover:shadow-md transition-shadow cursor-pointer group"
+                                    onClick={() => navigateToFolder(folder.id, folder.name)}
                                 >
                                     <CardContent className="p-4">
                                         <div className="flex items-center gap-3">
@@ -286,35 +335,76 @@ export default function DashboardPage() {
                                                 <Folder className="h-8 w-8 text-yellow-600" />
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <p className="font-medium truncate">{folder.name}</p>
-                                                <p className="text-sm text-gray-500">{formatDate(folder.createdAt)}</p>
+                                                {editingFolder === folder.id ? (
+                                                    <InlineEdit
+                                                        value={folder.name}
+                                                        onSave={(name) => handleRenameFolder(folder.id, name)}
+                                                        onCancel={() => setEditingFolder(null)}
+                                                    />
+                                                ) : (
+                                                    <>
+                                                        <p className="font-medium truncate">{folder.name}</p>
+                                                        <p className="text-sm text-gray-500">{formatDate(folder.createdAt)}</p>
+                                                    </>
+                                                )}
                                             </div>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setShareModal({ folderId: folder.id, name: folder.name });
-                                                }}
-                                            >
-                                                <Share2 className="h-4 w-4" />
-                                            </Button>
+                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => setEditingFolder(folder.id)}
+                                                    title="Rename"
+                                                >
+                                                    <Edit2 className="h-4 w-4" />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => setShareModal({ folderId: folder.id, name: folder.name })}
+                                                >
+                                                    <Share2 className="h-4 w-4" />
+                                                </Button>
+                                            </div>
                                         </div>
                                     </CardContent>
                                 </Card>
                             ))}
                             {files.map((file) => (
-                                <Card key={file.id} className="hover:shadow-md transition-shadow">
+                                <Card key={file.id} className="hover:shadow-md transition-shadow group">
                                     <CardContent className="p-4">
                                         <div className="flex items-center gap-3">
                                             <div className="text-3xl">{getFileIcon(file.mimeType)}</div>
                                             <div className="flex-1 min-w-0">
-                                                <p className="font-medium truncate">{file.name}</p>
-                                                <p className="text-sm text-gray-500">
-                                                    {formatBytes(file.size)} • {formatDate(file.createdAt)}
-                                                </p>
+                                                {editingFile === file.id ? (
+                                                    <InlineEdit
+                                                        value={file.name}
+                                                        onSave={(name) => handleRenameFile(file.id, name)}
+                                                        onCancel={() => setEditingFile(null)}
+                                                    />
+                                                ) : (
+                                                    <>
+                                                        <p
+                                                            className="font-medium truncate cursor-pointer hover:text-primary-600"
+                                                            onDoubleClick={() => setEditingFile(file.id)}
+                                                            title="Double-click to rename"
+                                                        >
+                                                            {file.name}
+                                                        </p>
+                                                        <p className="text-sm text-gray-500">
+                                                            {formatBytes(file.size)} • {formatDate(file.createdAt)}
+                                                        </p>
+                                                    </>
+                                                )}
                                             </div>
-                                            <div className="flex gap-1">
+                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => setEditingFile(file.id)}
+                                                    title="Rename"
+                                                >
+                                                    <Edit2 className="h-4 w-4" />
+                                                </Button>
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"

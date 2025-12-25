@@ -137,6 +137,17 @@ class ApiClient {
         return this.request(API_ROUTES.FOLDERS.DELETE(id), { method: 'DELETE' });
     }
 
+    async renameFolder(id: string, name: string) {
+        return this.request(API_ROUTES.FOLDERS.UPDATE(id), {
+            method: 'PATCH',
+            body: JSON.stringify({ name }),
+        });
+    }
+
+    async getFolder(id: string) {
+        return this.request(API_ROUTES.FOLDERS.GET(id));
+    }
+
     // Shares
     async listShares() {
         return this.request(API_ROUTES.SHARES.LIST);
