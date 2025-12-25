@@ -63,9 +63,13 @@ export default function AdminPage() {
                 }).then(r => r.json()).catch(() => null),
             ]);
 
-            // Ensure usersData is an array (API might return error object)
-            const usersData = Array.isArray(usersResponse) ? usersResponse : [];
-            if (!Array.isArray(usersResponse) && usersResponse?.message) {
+            // API returns { data: users[], meta: {...} } for paginated response
+            let usersData: User[] = [];
+            if (Array.isArray(usersResponse)) {
+                usersData = usersResponse;
+            } else if (usersResponse?.data && Array.isArray(usersResponse.data)) {
+                usersData = usersResponse.data;
+            } else if (usersResponse?.message) {
                 setError(usersResponse.message);
             }
 
