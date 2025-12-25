@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Upload, Folder, LogOut, Plus, FileIcon, Download, Trash2, Link2, Shield, Share2, Edit2, Eye, CheckSquare, Square, User, Keyboard } from 'lucide-react';
+import { Upload, Folder, LogOut, Plus, FileIcon, Download, Trash2, Link2, Shield, Share2, Edit2, Eye, CheckSquare, Square, User, Keyboard, Move } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ShareModal } from '@/components/share-modal';
@@ -14,6 +14,7 @@ import { FilePreview } from '@/components/file-preview';
 import { SearchBar } from '@/components/search-bar';
 import { SortDropdown, SortField, SortOrder } from '@/components/sort-dropdown';
 import { KeyboardShortcutsModal } from '@/components/keyboard-shortcuts-modal';
+import { MoveDialog } from '@/components/move-dialog';
 import { useDashboardShortcuts } from '@/hooks/use-keyboard-shortcuts';
 import { api } from '@/lib/api';
 import { formatBytes, formatDate, getFileIcon } from '@/lib/utils';
@@ -67,6 +68,7 @@ export default function DashboardPage() {
     const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
     const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
     const [selectedFolders, setSelectedFolders] = useState<Set<string>>(new Set());
+    const [moveItem, setMoveItem] = useState<{ id: string; name: string; type: 'file' | 'folder' } | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const triggerFileUpload = () => {
@@ -292,6 +294,10 @@ export default function DashboardPage() {
                                 <Button variant="ghost" onClick={() => router.push('/shares')}>
                                     <Link2 className="h-4 w-4 mr-2" />
                                     My Shares
+                                </Button>
+                                <Button variant="ghost" onClick={() => router.push('/trash')}>
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Trash
                                 </Button>
                                 {user?.role === 'ADMIN' && (
                                     <Button variant="ghost" onClick={() => router.push('/admin')}>
@@ -557,6 +563,9 @@ export default function DashboardPage() {
                                                 <Button variant="ghost" size="icon" onClick={() => setEditingFile(file.id)}>
                                                     <Edit2 className="h-4 w-4" />
                                                 </Button>
+                                                <Button variant="ghost" size="icon" onClick={() => setMoveItem({ id: file.id, name: file.name, type: 'file' })} title="Move">
+                                                    <Move className="h-4 w-4" />
+                                                </Button>
                                                 <Button variant="ghost" size="icon" onClick={() => setShareModal({ fileId: file.id, name: file.name })}>
                                                     <Share2 className="h-4 w-4" />
                                                 </Button>
@@ -594,6 +603,18 @@ export default function DashboardPage() {
                         itemName={shareModal.name}
                         onClose={() => setShareModal(null)}
                         onCreated={() => { }}
+                    />
+                )}
+
+                {/* Move Dialog */}
+                {moveItem && (
+                    <MoveDialog
+                        itemType={moveItem.type}
+                        itemName={moveItem.name}
+                        itemId={moveItem.id}
+                        currentFolderId={currentFolder}
+                        onClose={() => setMoveItem(null)}
+                        onMoved={loadData}
                     />
                 )}
             </div>
