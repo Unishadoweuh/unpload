@@ -1,6 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { ActivityAction } from '@prisma/client';
+
+// Action types matching Prisma enum
+type ActivityActionType =
+    | 'UPLOAD' | 'DOWNLOAD' | 'DELETE'
+    | 'SHARE_CREATE' | 'SHARE_DELETE'
+    | 'FOLDER_CREATE' | 'FOLDER_DELETE'
+    | 'LOGIN' | 'LOGOUT' | 'PASSWORD_CHANGE' | 'PROFILE_UPDATE';
 
 @Injectable()
 export class ActivityService {
@@ -8,19 +14,19 @@ export class ActivityService {
 
     async log(
         userId: string,
-        action: ActivityAction,
+        action: ActivityActionType,
         details?: Record<string, unknown>,
         request?: { ip?: string; headers?: Record<string, string> },
     ) {
-        return this.prisma.activityLog.create({
-            data: {
-                userId,
-                action,
-                details: details || null,
-                ipAddress: request?.ip || null,
-                userAgent: request?.headers?.['user-agent'] || null,
-            },
-        });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const data: any = {
+            userId,
+            action,
+            ipAddress: request?.ip ?? null,
+            userAgent: request?.headers?.['user-agent'] ?? null,
+        };
+        if (details) data.details = details;
+        return this.prisma.activityLog.create({ data });
     }
 
     async getByUser(userId: string, page = 1, limit = 20) {
