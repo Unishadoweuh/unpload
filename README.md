@@ -27,7 +27,7 @@
 
 ```bash
 # Clone the repository
-git clone https://gitea.example.com/user/unpload.git
+git clone https://github.com/Unishadoweuh/unpload.git
 cd unpload
 
 # Copy environment file
@@ -52,7 +52,7 @@ npm install
 # Start PostgreSQL (optional, use Docker)
 docker run -d -p 5432:5432 \
   -e POSTGRES_USER=unpload \
-  -e POSTGRES_PASSWORD=unpload \
+  -e POSTGRES_PASSWORD=securepassword \
   -e POSTGRES_DB=unpload \
   postgres:16-alpine
 
