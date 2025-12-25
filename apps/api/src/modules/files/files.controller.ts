@@ -61,15 +61,18 @@ export class FilesController {
         @Body('folderId') folderId?: string,
     ) {
         const results = await Promise.all(
-            files.map((file) =>
-                this.filesService.upload({
+            files.map((file) => {
+                // Fix UTF-8 encoding: Multer encodes filename as latin-1, we need UTF-8
+                const originalName = Buffer.from(file.originalname, 'latin1').toString('utf8');
+
+                return this.filesService.upload({
                     userId: user.id,
                     folderId,
-                    originalName: file.originalname,
+                    originalName,
                     mimeType: file.mimetype,
                     buffer: file.buffer,
-                }),
-            ),
+                });
+            }),
         );
         return results;
     }
