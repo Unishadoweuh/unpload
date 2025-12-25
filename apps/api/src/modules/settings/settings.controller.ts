@@ -25,61 +25,10 @@ export class SettingsController {
         return this.settingsService.getAll();
     }
 
-    @Get(':key')
-    @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles('ADMIN')
-    @ApiBearerAuth()
-    @ApiOperation({ summary: 'Get specific setting' })
-    async get(@Param('key') key: string) {
-        const value = await this.settingsService.get(key);
-        return { key, value };
-    }
-
-    @Put(':key')
-    @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles('ADMIN')
-    @ApiBearerAuth()
-    @ApiOperation({ summary: 'Update setting' })
-    async update(@Param('key') key: string, @Body() dto: UpdateSettingDto) {
-        await this.settingsService.set(key, dto.value, dto.category || 'general');
-        return { success: true };
-    }
-
-    @Post('reload')
-    @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles('ADMIN')
-    @ApiBearerAuth()
-    @ApiOperation({ summary: 'Reload settings from database' })
-    async reload() {
-        await this.settingsService.reload();
-        return { success: true };
-    }
-
-    @Post('logo')
-    @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles('ADMIN')
-    @ApiBearerAuth()
-    @UseInterceptors(FileInterceptor('logo'))
-    @ApiOperation({ summary: 'Upload application logo' })
-    @ApiConsumes('multipart/form-data')
-    async uploadLogo(@UploadedFile() file: Express.Multer.File) {
-        const logoDir = '/data/uploads/branding';
-        await fs.mkdir(logoDir, { recursive: true });
-
-        const ext = path.extname(file.originalname) || '.png';
-        const logoPath = path.join(logoDir, `logo${ext}`);
-
-        await fs.writeFile(logoPath, file.buffer);
-
-        // Save logo path in settings
-        await this.settingsService.set('logo_path', logoPath, 'branding');
-        await this.settingsService.set('logo_enabled', true, 'branding');
-
-        return { success: true, path: logoPath };
-    }
+    // IMPORTANT: Put specific routes BEFORE the :key param route!
 
     @Get('logo/image')
-    @ApiOperation({ summary: 'Get application logo' })
+    @ApiOperation({ summary: 'Get application logo (public)' })
     async getLogo(@Res({ passthrough: true }) res: Response): Promise<StreamableFile | null> {
         const logoPath = await this.settingsService.get('logo_path');
 
@@ -109,5 +58,59 @@ export class SettingsController {
             res.status(404);
             return null;
         }
+    }
+
+    @Post('logo')
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles('ADMIN')
+    @ApiBearerAuth()
+    @UseInterceptors(FileInterceptor('logo'))
+    @ApiOperation({ summary: 'Upload application logo' })
+    @ApiConsumes('multipart/form-data')
+    async uploadLogo(@UploadedFile() file: Express.Multer.File) {
+        const logoDir = '/data/uploads/branding';
+        await fs.mkdir(logoDir, { recursive: true });
+
+        const ext = path.extname(file.originalname) || '.png';
+        const logoPath = path.join(logoDir, `logo${ext}`);
+
+        await fs.writeFile(logoPath, file.buffer);
+
+        // Save logo path in settings
+        await this.settingsService.set('logo_path', logoPath, 'branding');
+        await this.settingsService.set('logo_enabled', true, 'branding');
+
+        return { success: true, path: logoPath };
+    }
+
+    @Post('reload')
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles('ADMIN')
+    @ApiBearerAuth()
+    @ApiOperation({ summary: 'Reload settings from database' })
+    async reload() {
+        await this.settingsService.reload();
+        return { success: true };
+    }
+
+    // Generic key route MUST come LAST because :key captures everything
+    @Get(':key')
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles('ADMIN')
+    @ApiBearerAuth()
+    @ApiOperation({ summary: 'Get specific setting' })
+    async get(@Param('key') key: string) {
+        const value = await this.settingsService.get(key);
+        return { key, value };
+    }
+
+    @Put(':key')
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles('ADMIN')
+    @ApiBearerAuth()
+    @ApiOperation({ summary: 'Update setting' })
+    async update(@Param('key') key: string, @Body() dto: UpdateSettingDto) {
+        await this.settingsService.set(key, dto.value, dto.category || 'general');
+        return { success: true };
     }
 }
