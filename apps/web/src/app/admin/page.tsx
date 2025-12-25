@@ -54,7 +54,7 @@ export default function AdminPage() {
             setLoading(true);
             const token = api.getToken();
 
-            const [usersData, statsData] = await Promise.all([
+            const [usersResponse, statsData] = await Promise.all([
                 fetch(`${API_URL}/api/admin/users`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 }).then(r => r.json()),
@@ -63,7 +63,13 @@ export default function AdminPage() {
                 }).then(r => r.json()).catch(() => null),
             ]);
 
-            setUsers(usersData || []);
+            // Ensure usersData is an array (API might return error object)
+            const usersData = Array.isArray(usersResponse) ? usersResponse : [];
+            if (!Array.isArray(usersResponse) && usersResponse?.message) {
+                setError(usersResponse.message);
+            }
+
+            setUsers(usersData);
             setStats(statsData);
         } catch (error) {
             console.error('Failed to load admin data:', error);
@@ -242,8 +248,8 @@ export default function AdminPage() {
                                         >
                                             <div className="flex items-center gap-4">
                                                 <div className={`w-10 h-10 rounded-full flex items-center justify-center ${user.role === 'ADMIN'
-                                                        ? 'bg-primary-100 dark:bg-primary-900/50'
-                                                        : 'bg-gray-200 dark:bg-gray-700'
+                                                    ? 'bg-primary-100 dark:bg-primary-900/50'
+                                                    : 'bg-gray-200 dark:bg-gray-700'
                                                     }`}>
                                                     <span className="text-sm font-medium">
                                                         {user.name?.charAt(0)?.toUpperCase() || user.email.charAt(0).toUpperCase()}
