@@ -12,7 +12,6 @@
 
 </div>
 
-
 ## ✨ Features
 
 - 📁 **File Management** - Upload files and folders, preview, rename, organize
