@@ -38,7 +38,7 @@ services:
       STORAGE_PATH: /data/uploads
       CORS_ORIGIN: ${CORS_ORIGIN:-*}
     volumes:
-      - uploads_data:/data/uploads
+      - /data/uploads:/data/uploads
     ports:
       - "4000:4000"
     healthcheck:
@@ -77,7 +77,6 @@ services:
 
 volumes:
   postgres_data:
-  uploads_data:
 
 
 networks:

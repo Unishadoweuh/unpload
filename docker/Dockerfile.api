@@ -22,14 +22,16 @@ COPY --from=shared-build /app/packages/shared ./packages/shared
 COPY apps/api ./apps/api
 COPY tsconfig.json ./
 WORKDIR /app/apps/api
-RUN npm run build
+# Generate Prisma client and build
+RUN npx prisma generate && npm run build
 
 # Production dependencies only
 FROM base AS prod-deps
 COPY package*.json ./
 COPY apps/api/package*.json ./apps/api/
 COPY packages/shared/package*.json ./packages/shared/
-RUN npm ci --omit=dev
+COPY apps/api/prisma ./apps/api/prisma
+RUN npm ci --omit=dev && cd apps/api && npx prisma generate
 
 # Production image
 FROM node:20-alpine AS production
