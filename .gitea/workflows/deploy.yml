@@ -78,13 +78,13 @@ jobs:
             git reset --hard origin/main
             
             echo "🏗️ Building Docker images locally..."
-            docker compose -f docker/docker-compose.prod.yml build
+            docker compose --env-file .env -f docker/docker-compose.prod.yml build
             
             echo "🗃️ Running database migrations..."
-            docker compose -f docker/docker-compose.prod.yml run --rm api npx prisma migrate deploy || true
+            docker compose --env-file .env -f docker/docker-compose.prod.yml run --rm api npx prisma migrate deploy || true
             
             echo "🚀 Starting services..."
-            docker compose -f docker/docker-compose.prod.yml up -d --remove-orphans
+            docker compose --env-file .env -f docker/docker-compose.prod.yml up -d --remove-orphans
             
             echo "🧹 Cleaning up old images..."
             docker image prune -f
