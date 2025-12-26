@@ -18,8 +18,9 @@ jobs:
     name: 🔍 Lint
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout code
+        run: |
+          git clone --depth 1 --branch ${GITHUB_REF_NAME:-main} ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git .
 
       - name: Install Node.js
         run: |
@@ -39,8 +40,9 @@ jobs:
     name: 📝 Type Check
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout code
+        run: |
+          git clone --depth 1 --branch ${GITHUB_REF_NAME:-main} ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git .
 
       - name: Install Node.js
         run: |
@@ -61,8 +63,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: [lint, type-check]
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout code
+        run: |
+          git clone --depth 1 --branch ${GITHUB_REF_NAME:-main} ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git .
 
       - name: Install Node.js
         run: |
@@ -86,8 +89,9 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout code
+        run: |
+          git clone --depth 1 --branch ${GITHUB_REF_NAME:-main} ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git .
 
       - name: Install Node.js
         run: |

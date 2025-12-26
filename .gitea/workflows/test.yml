@@ -37,8 +37,9 @@ jobs:
       JWT_SECRET: test-secret-key-for-testing-only-32chars
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout code
+        run: |
+          git clone --depth 1 --branch ${GITHUB_REF_NAME:-main} ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git .
 
       - name: Install Node.js
         run: |
@@ -65,8 +66,9 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout code
+        run: |
+          git clone --depth 1 --branch ${GITHUB_REF_NAME:-main} ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git .
 
       - name: Install Node.js
         run: |
@@ -107,8 +109,9 @@ jobs:
       JWT_SECRET: test-secret-key-for-testing-only-32chars
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout code
+        run: |
+          git clone --depth 1 --branch ${GITHUB_REF_NAME:-main} ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git .
 
       - name: Install Node.js
         run: |
