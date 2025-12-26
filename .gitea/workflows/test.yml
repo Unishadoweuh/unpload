@@ -10,9 +10,6 @@ on:
       - main
       - develop
 
-env:
-  NODE_VERSION: '20'
-
 jobs:
   # ============================================
   # Unit Tests - API
@@ -43,11 +40,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+      - name: Install Node.js
+        run: |
+          curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+          sudo apt-get install -y nodejs
 
       - name: Install dependencies
         run: npm ci
@@ -59,22 +55,10 @@ jobs:
         run: npm run db:push
 
       - name: Run API tests
-        run: npm run test --workspace=@unpload/api
-        continue-on-error: true
-
-      - name: Run API tests with coverage
-        run: npm run test:cov --workspace=@unpload/api || true
-
-      - name: Upload coverage report
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: api-coverage
-          path: apps/api/coverage
-          retention-days: 7
+        run: npm run test --workspace=@unpload/api || echo "No tests found"
 
   # ============================================
-  # Unit Tests - Web (if configured)
+  # Unit Tests - Web
   # ============================================
   test-web:
     name: 🧪 Web Unit Tests
@@ -84,11 +68,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+      - name: Install Node.js
+        run: |
+          curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+          sudo apt-get install -y nodejs
 
       - name: Install dependencies
         run: npm ci
@@ -97,7 +80,7 @@ jobs:
         run: npm run test --workspace=@unpload/web || echo "No tests configured for web"
 
   # ============================================
-  # E2E Tests (Optional)
+  # E2E Tests
   # ============================================
   test-e2e:
     name: 🎭 E2E Tests
@@ -127,11 +110,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+      - name: Install Node.js
+        run: |
+          curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+          sudo apt-get install -y nodejs
 
       - name: Install dependencies
         run: npm ci

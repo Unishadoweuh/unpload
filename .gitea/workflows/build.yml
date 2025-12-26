@@ -10,67 +10,24 @@ on:
       - main
       - develop
 
-env:
-  NODE_VERSION: '20'
-
 jobs:
-  # ============================================
-  # Install Dependencies & Cache
-  # ============================================
-  install:
-    name: 📦 Install Dependencies
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-
-      - name: Cache node_modules
-        id: cache-node-modules
-        uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
-
-      - name: Install dependencies
-        if: steps.cache-node-modules.outputs.cache-hit != 'true'
-        run: npm ci
-
-      - name: Upload node_modules
-        uses: actions/upload-artifact@v4
-        with:
-          name: node_modules
-          path: node_modules
-          retention-days: 1
-
   # ============================================
   # Lint Check
   # ============================================
   lint:
     name: 🔍 Lint
     runs-on: ubuntu-latest
-    needs: install
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
+      - name: Install Node.js
+        run: |
+          curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+          sudo apt-get install -y nodejs
 
-      - name: Download node_modules
-        uses: actions/download-artifact@v4
-        with:
-          name: node_modules
-          path: node_modules
+      - name: Install dependencies
+        run: npm ci
 
       - name: Run ESLint
         run: npm run lint
@@ -81,21 +38,17 @@ jobs:
   type-check:
     name: 📝 Type Check
     runs-on: ubuntu-latest
-    needs: install
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
+      - name: Install Node.js
+        run: |
+          curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+          sudo apt-get install -y nodejs
 
-      - name: Download node_modules
-        uses: actions/download-artifact@v4
-        with:
-          name: node_modules
-          path: node_modules
+      - name: Install dependencies
+        run: npm ci
 
       - name: Run TypeScript check
         run: npm run type-check
@@ -111,16 +64,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
+      - name: Install Node.js
+        run: |
+          curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+          sudo apt-get install -y nodejs
 
-      - name: Download node_modules
-        uses: actions/download-artifact@v4
-        with:
-          name: node_modules
-          path: node_modules
+      - name: Install dependencies
+        run: npm ci
 
       - name: Generate Prisma Client
         run: npm run db:generate
@@ -128,37 +78,21 @@ jobs:
       - name: Build all packages
         run: npm run build
 
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-output
-          path: |
-            apps/api/dist
-            apps/web/.next
-            packages/shared/dist
-          retention-days: 1
-
   # ============================================
   # Security Audit
   # ============================================
   security-audit:
     name: 🔒 Security Audit
     runs-on: ubuntu-latest
-    needs: install
     continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
+      - name: Install Node.js
+        run: |
+          curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+          sudo apt-get install -y nodejs
 
       - name: Run npm audit
         run: npm audit --audit-level=high || true
-
-      - name: Check for known vulnerabilities
-        run: |
-          echo "📊 Security scan completed"
-          echo "Review any HIGH or CRITICAL vulnerabilities above"

@@ -6,7 +6,7 @@
 
 [![CI Build](https://lab.unishadow.ovh/Unishadow/unpload/actions/workflows/build.yml/badge.svg)](https://lab.unishadow.ovh/Unishadow/unpload/actions/workflows/build.yml)
 [![Tests](https://lab.unishadow.ovh/Unishadow/unpload/actions/workflows/test.yml/badge.svg)](https://lab.unishadow.ovh/Unishadow/unpload/actions/workflows/test.yml)
-[![Docker Build](https://lab.unishadow.ovh/Unishadow/unpload/actions/workflows/docker-build.yml/badge.svg)](https://lab.unishadow.ovh/Unishadow/unpload/actions/workflows/docker-build.yml)
+[![Deploy](https://lab.unishadow.ovh/Unishadow/unpload/actions/workflows/deploy.yml/badge.svg)](https://lab.unishadow.ovh/Unishadow/unpload/actions/workflows/deploy.yml)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Docker](https://img.shields.io/badge/docker-ready-blue)](docker/)
 

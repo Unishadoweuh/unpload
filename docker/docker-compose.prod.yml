@@ -1,5 +1,5 @@
 # Production Docker Compose Configuration
-# Pulls images from the Gitea registry
+# Builds images locally on the server
 
 services:
   db:
@@ -21,7 +21,10 @@ services:
       - unpload-network
 
   api:
-    image: lab.unishadow.ovh/unishadow/unpload-api:${IMAGE_TAG:-latest}
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.api
+    image: unpload-api:latest
     container_name: unpload-api
     restart: unless-stopped
     depends_on:
@@ -48,7 +51,12 @@ services:
       - unpload-network
 
   web:
-    image: lab.unishadow.ovh/unishadow/unpload-web:${IMAGE_TAG:-latest}
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.web
+      args:
+        NEXT_PUBLIC_API_URL: ${API_URL:-http://localhost:4000}
+    image: unpload-web:latest
     container_name: unpload-web
     restart: unless-stopped
     depends_on:

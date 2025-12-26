@@ -9,13 +9,9 @@ This document describes how to configure the CI/CD pipeline for UnPload.
 │                         CI/CD Pipeline                          │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  Push/PR ──► build.yml ──► test.yml ──► docker-build.yml       │
-│                                              │                  │
-│                                              ▼                  │
-│                                         deploy.yml              │
-│                                              │                  │
-│                                              ▼                  │
-│                                        Production               │
+│  Push/PR ──► build.yml ──► test.yml                            │
+│                                                                 │
+│  Push to main ──► deploy.yml ──► Build on Server ──► Deploy    │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -26,8 +22,16 @@ This document describes how to configure the CI/CD pipeline for UnPload.
 |----------|---------|-------------|
 | `build.yml` | Push, PR | Lint, type-check, build all packages |
 | `test.yml` | Push, PR | Run unit tests and E2E tests |
-| `docker-build.yml` | Push to main, tags | Build and push Docker images |
-| `deploy.yml` | After docker-build success | Deploy to production |
+| `deploy.yml` | Push to main, tags | Build images locally & deploy |
+
+## Architecture: Local Build
+
+This pipeline builds Docker images **directly on the production server** instead of using a registry. This approach:
+
+- ✅ No registry setup required
+- ✅ Simpler configuration
+- ✅ Full control over build process
+- ✅ No network transfer of large images
 
 ## Required Secrets
 
@@ -35,22 +39,15 @@ Configure these secrets in your Gitea repository settings:
 
 **Settings → Actions → Secrets**
 
-### Registry Authentication
-
-| Secret | Description | Example |
-|--------|-------------|---------|
-| `REGISTRY_USERNAME` | Gitea username for registry | `your-username` |
-| `REGISTRY_PASSWORD` | Gitea access token with `write:package` scope | `gta_xxxxx` |
-
 ### Deployment Secrets
 
-| Secret | Description | Example |
-|--------|-------------|---------|
-| `DEPLOY_HOST` | Production server IP/hostname | `prod.example.com` |
-| `DEPLOY_USER` | SSH username on the server | `deploy` |
-| `DEPLOY_SSH_KEY` | Private SSH key (full content) | `-----BEGIN OPENSSH PRIVATE KEY-----...` |
-| `DEPLOY_PATH` | Path to unpload directory on server | `/opt/unpload` |
-| `API_URL` | Public API URL | `https://api.unpload.com` |
+| Secret | Required | Description | Example |
+|--------|----------|-------------|---------|
+| `DEPLOY_HOST` | ✅ | Production server IP/hostname | `192.168.1.100` |
+| `DEPLOY_USER` | ✅ | SSH username on the server | `deploy` |
+| `DEPLOY_SSH_KEY` | ✅ | Private SSH key (full content) | `-----BEGIN OPENSSH PRIVATE KEY-----...` |
+| `DEPLOY_PATH` | ❌ | Path to unpload directory | `/opt/unpload` (default) |
+| `API_URL` | ❌ | Public API URL | `https://api.unpload.com` |
 
 ### Optional Secrets
 
@@ -60,13 +57,7 @@ Configure these secrets in your Gitea repository settings:
 
 ## Setup Instructions
 
-### 1. Create a Gitea Access Token
-
-1. Go to **Settings → Applications → Access Tokens**
-2. Create a new token with `write:package` permission
-3. Copy the token as `REGISTRY_PASSWORD`
-
-### 2. Setup SSH Deployment
+### 1. Setup SSH Deployment
 
 ```bash
 # On your local machine, generate a deploy key
@@ -79,11 +70,12 @@ ssh-copy-id -i deploy_key.pub user@your-server
 cat deploy_key
 ```
 
-### 3. Prepare the Production Server
+### 2. Prepare the Production Server
 
 ```bash
 # On the production server
-mkdir -p /opt/unpload
+sudo mkdir -p /opt/unpload
+sudo chown $USER:$USER /opt/unpload
 cd /opt/unpload
 
 # Clone the repository
@@ -93,15 +85,28 @@ git clone https://lab.unishadow.ovh/Unishadow/unpload.git .
 cp .env.example .env
 nano .env  # Configure your production values
 
-# Login to the registry
-docker login lab.unishadow.ovh
+# Verify Docker is installed
+docker --version
+docker compose version
 ```
 
-### 4. Add Secrets to Gitea
+### 3. Add Secrets to Gitea
 
 1. Go to your repository on Gitea
 2. Navigate to **Settings → Actions → Secrets**
 3. Add each secret from the tables above
+
+## How Deployment Works
+
+1. **Push to main** triggers the deploy workflow
+2. **Validate job** runs lint, type-check, and build
+3. **SSH to server** connects to production
+4. **Git pull** gets latest code
+5. **Docker build** builds images locally
+6. **Prisma migrate** applies database migrations
+7. **Docker up** starts the new containers
+8. **Health check** verifies API is responding
+9. **Rollback** reverts if health check fails
 
 ## Manual Deployment
 
@@ -112,37 +117,20 @@ You can trigger a manual deployment from the **Actions** tab:
 3. Select the environment (production/staging)
 4. Click **Run workflow**
 
-## Docker Image Tags
-
-The pipeline creates the following image tags:
-
-| Tag | Description |
-|-----|-------------|
-| `latest` | Latest build from main branch |
-| `sha-<commit>` | Specific commit SHA |
-| `v1.0.0` | Semantic version (from git tags) |
-| `main` | Main branch builds |
-
 ## Troubleshooting
 
-### Build Fails
+### Build Fails on Server
 
-1. Check the workflow logs in Gitea Actions
-2. Ensure all npm dependencies are up to date
-3. Run `npm run lint` and `npm run type-check` locally
-
-### Docker Build Fails
-
-1. Verify Dockerfile syntax
-2. Check that all required files are in the Docker context
-3. Ensure base images are accessible
+1. SSH to the server: `ssh deploy@your-server`
+2. Navigate to project: `cd /opt/unpload`
+3. Try building manually: `docker compose -f docker/docker-compose.prod.yml build`
+4. Check disk space: `df -h`
 
 ### Deployment Fails
 
 1. Verify SSH connection: `ssh deploy@your-server`
-2. Check Docker is running on the server
-3. Verify registry credentials
-4. Check server disk space
+2. Check Docker is running: `docker ps`
+3. Check container logs: `docker logs unpload-api`
 
 ### Health Check Fails
 
@@ -150,10 +138,16 @@ The pipeline creates the following image tags:
 2. Check container logs: `docker logs unpload-api`
 3. Verify database connection
 
+### Git Pull Fails
+
+1. Ensure the deploy user has git access
+2. Check for uncommitted changes on server: `git status`
+3. Reset if needed: `git reset --hard origin/main`
+
 ## Security Best Practices
 
-- ✅ Use access tokens, never passwords
 - ✅ Use dedicated deploy user with limited permissions
-- ✅ Rotate secrets regularly
 - ✅ Use ed25519 SSH keys
+- ✅ Rotate secrets regularly
 - ✅ Keep the production .env file secure
+- ✅ Firewall: only expose ports 80/443
