@@ -34,7 +34,7 @@ export default function ProfilePage() {
 
     const loadProfile = async () => {
         try {
-            const data = await api.getProfile();
+            const data = await api.getProfile() as UserProfile;
             setUser(data);
         } catch (error) {
             console.error('Failed to load profile:', error);
