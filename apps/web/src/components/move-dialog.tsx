@@ -123,7 +123,7 @@ export function MoveDialog({ itemType, itemName, itemId, currentFolderId, onClos
                 <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800">
                     <h2 className="font-semibold flex items-center gap-2">
                         <FolderOpen className="h-5 w-5 text-primary-600" />
-                        Move "{itemName}"
+                        Move &quot;{itemName}&quot;
                     </h2>
                     <Button variant="ghost" size="icon" onClick={onClose}>
                         <X className="h-5 w-5" />
@@ -159,8 +159,8 @@ export function MoveDialog({ itemType, itemName, itemId, currentFolderId, onClos
                         <button
                             onClick={() => setSelectedFolder(currentPath.length > 0 ? currentPath[currentPath.length - 1].id : null)}
                             className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 ${selectedFolder === (currentPath.length > 0 ? currentPath[currentPath.length - 1].id : null)
-                                    ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600'
-                                    : ''
+                                ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600'
+                                : ''
                                 }`}
                         >
                             <FolderOpen className="h-4 w-4" />
@@ -178,8 +178,8 @@ export function MoveDialog({ itemType, itemName, itemId, currentFolderId, onClos
                                     onDoubleClick={() => navigateToFolder(folder)}
                                     onClick={() => setSelectedFolder(folder.id)}
                                     className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 ${selectedFolder === folder.id
-                                            ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600'
-                                            : ''
+                                        ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600'
+                                        : ''
                                         }`}
                                 >
                                     <FolderOpen className="h-4 w-4 text-yellow-500" />
