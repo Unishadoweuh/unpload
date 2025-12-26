@@ -94,12 +94,13 @@ jobs:
 
       - name: Health Check
         run: |
-          echo "⏳ Waiting for API to be ready..."
-          sleep 15
+          echo "⏳ Waiting for services to be ready..."
+          sleep 20
           
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} << 'ENDSSH'
             for i in 1 2 3 4 5; do
-              if curl -sf "http://localhost:4000/api/health" > /dev/null 2>&1; then
+              # Check via Caddy (port 8080)
+              if curl -sf "http://localhost:8080/api/health" > /dev/null 2>&1; then
                 echo "✅ Health check passed!"
                 exit 0
               fi
@@ -107,6 +108,9 @@ jobs:
               sleep 5
             done
             echo "❌ Health check failed after 5 attempts"
+            # Show container logs for debugging
+            docker logs unpload-api --tail 20 2>&1 || true
+            docker logs unpload-caddy --tail 20 2>&1 || true
             exit 1
           ENDSSH
 
