@@ -17,6 +17,8 @@ interface UserProfile {
     role: string;
     createdAt: string;
     quota?: {
+        maxBytes: string;
+        usedBytes: string;
     };
 }
 
