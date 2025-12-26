@@ -17,15 +17,16 @@ jobs:
   lint:
     name: 🔍 Lint
     runs-on: ubuntu-latest
+    container:
+      image: node:20-alpine
     steps:
+      - name: Install git
+        run: apk add --no-cache git
+
       - name: Checkout code
         run: |
-          git clone --depth 1 --branch ${GITHUB_REF_NAME:-main} ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git .
-
-      - name: Install Node.js
-        run: |
-          curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-          sudo apt-get install -y nodejs
+          git clone --depth 1 ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git .
+          git checkout ${GITHUB_SHA}
 
       - name: Install dependencies
         run: npm ci
@@ -39,15 +40,16 @@ jobs:
   type-check:
     name: 📝 Type Check
     runs-on: ubuntu-latest
+    container:
+      image: node:20-alpine
     steps:
+      - name: Install git
+        run: apk add --no-cache git
+
       - name: Checkout code
         run: |
-          git clone --depth 1 --branch ${GITHUB_REF_NAME:-main} ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git .
-
-      - name: Install Node.js
-        run: |
-          curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-          sudo apt-get install -y nodejs
+          git clone --depth 1 ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git .
+          git checkout ${GITHUB_SHA}
 
       - name: Install dependencies
         run: npm ci
@@ -62,15 +64,16 @@ jobs:
     name: 🏗️ Build
     runs-on: ubuntu-latest
     needs: [lint, type-check]
+    container:
+      image: node:20-alpine
     steps:
+      - name: Install git
+        run: apk add --no-cache git
+
       - name: Checkout code
         run: |
-          git clone --depth 1 --branch ${GITHUB_REF_NAME:-main} ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git .
-
-      - name: Install Node.js
-        run: |
-          curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-          sudo apt-get install -y nodejs
+          git clone --depth 1 ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git .
+          git checkout ${GITHUB_SHA}
 
       - name: Install dependencies
         run: npm ci
@@ -88,15 +91,16 @@ jobs:
     name: 🔒 Security Audit
     runs-on: ubuntu-latest
     continue-on-error: true
+    container:
+      image: node:20-alpine
     steps:
+      - name: Install git
+        run: apk add --no-cache git
+
       - name: Checkout code
         run: |
-          git clone --depth 1 --branch ${GITHUB_REF_NAME:-main} ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git .
-
-      - name: Install Node.js
-        run: |
-          curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-          sudo apt-get install -y nodejs
+          git clone --depth 1 ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git .
+          git checkout ${GITHUB_SHA}
 
       - name: Run npm audit
         run: npm audit --audit-level=high || true
