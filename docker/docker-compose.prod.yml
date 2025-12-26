@@ -2,6 +2,28 @@
 # Builds images locally on the server
 
 services:
+  # ============================================
+  # Caddy Reverse Proxy
+  # ============================================
+  caddy:
+    image: caddy:2-alpine
+    container_name: unpload-caddy
+    restart: unless-stopped
+    ports:
+      - "${CADDY_PORT:-8080}:8080"
+    volumes:
+      - ../Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+      - web
+    networks:
+      - unpload-network
+
+  # ============================================
+  # PostgreSQL Database
+  # ============================================
   db:
     image: postgres:16-alpine
     container_name: unpload-db
@@ -20,6 +42,9 @@ services:
     networks:
       - unpload-network
 
+  # ============================================
+  # API Service
+  # ============================================
   api:
     build:
       context: ..
@@ -38,9 +63,9 @@ services:
       STORAGE_PATH: /data/uploads
       CORS_ORIGIN: ${CORS_ORIGIN:-*}
     volumes:
-      - /data/uploads:/data/uploads
-    ports:
-      - "4000:4000"
+      - uploads_data:/data/uploads
+    expose:
+      - "4000"
     healthcheck:
       test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4000/api/health" ]
       interval: 30s
@@ -50,12 +75,15 @@ services:
     networks:
       - unpload-network
 
+  # ============================================
+  # Web Frontend
+  # ============================================
   web:
     build:
       context: ..
       dockerfile: docker/Dockerfile.web
       args:
-        NEXT_PUBLIC_API_URL: ${API_URL:-http://localhost:4000}
+        NEXT_PUBLIC_API_URL: ${API_URL:-/api}
     image: unpload-web:latest
     container_name: unpload-web
     restart: unless-stopped
@@ -63,9 +91,9 @@ services:
       api:
         condition: service_healthy
     environment:
-      NEXT_PUBLIC_API_URL: ${API_URL:-http://api:4000}
-    ports:
-      - "3000:3000"
+      NEXT_PUBLIC_API_URL: ${API_URL:-/api}
+    expose:
+      - "3000"
     healthcheck:
       test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000" ]
       interval: 30s
@@ -77,6 +105,9 @@ services:
 
 volumes:
   postgres_data:
+  uploads_data:
+  caddy_data:
+  caddy_config:
 
 
 networks:

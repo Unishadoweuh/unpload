@@ -1,0 +1,26 @@
+# UnPload Caddyfile
+# Internal reverse proxy for Docker services
+# Listen on port 8080 (no SSL - handled by external Caddy)
+
+:8080 {
+    # API routes - proxy to API service
+    handle /api/* {
+        reverse_proxy api:4000
+    }
+
+    # Health check endpoint for external monitoring
+    handle /health {
+        respond "OK" 200
+    }
+
+    # All other routes - proxy to Web frontend
+    handle {
+        reverse_proxy web:3000
+    }
+
+    # Logging
+    log {
+        output stdout
+        format console
+    }
+}
