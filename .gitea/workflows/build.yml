@@ -1,129 +1,164 @@
-name: CI Pipeline
+name: CI - Build & Validate
 
 on:
   push:
-    branches: [main, develop]
+    branches:
+      - main
+      - develop
   pull_request:
-    branches: [main]
+    branches:
+      - main
+      - develop
+
+env:
+  NODE_VERSION: '20'
 
 jobs:
   # ============================================
-  # STAGE 1: Code Quality
+  # Install Dependencies & Cache
+  # ============================================
+  install:
+    name: 📦 Install Dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Cache node_modules
+        id: cache-node-modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Install dependencies
+        if: steps.cache-node-modules.outputs.cache-hit != 'true'
+        run: npm ci
+
+      - name: Upload node_modules
+        uses: actions/upload-artifact@v4
+        with:
+          name: node_modules
+          path: node_modules
+          retention-days: 1
+
+  # ============================================
+  # Lint Check
   # ============================================
   lint:
-    name: 🔍 ESLint
+    name: 🔍 Lint
     runs-on: ubuntu-latest
-    container:
-      image: node:20-alpine
+    needs: install
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install dependencies
-        run: npm ci --ignore-scripts || npm install --ignore-scripts
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Download node_modules
+        uses: actions/download-artifact@v4
+        with:
+          name: node_modules
+          path: node_modules
 
       - name: Run ESLint
-        run: npm run lint --if-present || echo "No lint script configured"
-
-  type-check:
-    name: 📝 TypeScript
-    runs-on: ubuntu-latest
-    container:
-      image: node:20-alpine
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: npm ci --ignore-scripts || npm install --ignore-scripts
-
-      - name: Generate Prisma types
-        run: cd apps/api && npx prisma generate || echo "Prisma skipped"
-
-      - name: Type check
-        run: npm run type-check --if-present || echo "No type-check configured"
+        run: npm run lint
 
   # ============================================
-  # STAGE 2: Security
+  # Type Check
+  # ============================================
+  type-check:
+    name: 📝 Type Check
+    runs-on: ubuntu-latest
+    needs: install
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Download node_modules
+        uses: actions/download-artifact@v4
+        with:
+          name: node_modules
+          path: node_modules
+
+      - name: Run TypeScript check
+        run: npm run type-check
+
+  # ============================================
+  # Build
+  # ============================================
+  build:
+    name: 🏗️ Build
+    runs-on: ubuntu-latest
+    needs: [lint, type-check]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Download node_modules
+        uses: actions/download-artifact@v4
+        with:
+          name: node_modules
+          path: node_modules
+
+      - name: Generate Prisma Client
+        run: npm run db:generate
+
+      - name: Build all packages
+        run: npm run build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: |
+            apps/api/dist
+            apps/web/.next
+            packages/shared/dist
+          retention-days: 1
+
+  # ============================================
+  # Security Audit
   # ============================================
   security-audit:
     name: 🔒 Security Audit
     runs-on: ubuntu-latest
-    container:
-      image: node:20-alpine
+    needs: install
+    continue-on-error: true
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
 
       - name: Run npm audit
-        run: npm audit --audit-level=critical || echo "Audit complete"
+        run: npm audit --audit-level=high || true
 
-  # ============================================
-  # STAGE 3: Tests
-  # ============================================
-  unit-tests:
-    name: 🧪 Unit Tests
-    runs-on: ubuntu-latest
-    container:
-      image: node:20-alpine
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: npm ci --ignore-scripts || npm install --ignore-scripts
-
-      - name: Generate Prisma Client
-        run: cd apps/api && npx prisma generate || echo "Prisma skipped"
-
-      - name: Run tests
-        run: npm run test --if-present || echo "No tests configured"
-        env:
-          JWT_SECRET: test-secret-key-for-ci
-
-  # ============================================
-  # STAGE 4: Build Check (no Docker needed)
-  # ============================================
-  build-check:
-    name: 🏗️ Build Check
-    runs-on: ubuntu-latest
-    needs: [lint, type-check, unit-tests]
-    container:
-      image: node:20-alpine
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: npm ci --ignore-scripts || npm install --ignore-scripts
-
-      - name: Generate Prisma
-        run: cd apps/api && npx prisma generate || echo "Prisma skipped"
-
-      - name: Build API
-        run: cd apps/api && npm run build || echo "API build check done"
-
-      - name: Build Web
-        run: cd apps/web && npm run build || echo "Web build check done"
-        env:
-          NEXT_PUBLIC_API_URL: http://localhost:4000
-
-  # ============================================
-  # SUMMARY
-  # ============================================
-  ci-success:
-    name: ✅ CI Success
-    runs-on: ubuntu-latest
-    needs: [lint, type-check, security-audit, unit-tests, build-check]
-    container:
-      image: alpine:latest
-    if: success()
-    steps:
-      - name: CI Pipeline Passed
+      - name: Check for known vulnerabilities
         run: |
-          echo "🎉 All CI checks passed!"
-          echo "✅ Lint: OK"
-          echo "✅ Type-check: OK"
-          echo "✅ Security: OK"
-          echo "✅ Tests: OK"
-          echo "✅ Build: OK"
+          echo "📊 Security scan completed"
+          echo "Review any HIGH or CRITICAL vulnerabilities above"

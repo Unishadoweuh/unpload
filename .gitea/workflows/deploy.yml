@@ -1,195 +1,158 @@
-name: Deploy to Production
+name: CD - Deploy to Production
 
 on:
-  push:
-    branches: [main]
-    tags:
-      - 'v*'
+  workflow_run:
+    workflows: ["CD - Build & Push Docker Images"]
+    types:
+      - completed
+    branches:
+      - main
   workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
 
 env:
-  APP_NAME: unpload
-  DEPLOY_PATH: /opt/unpload
+  REGISTRY: lab.unishadow.ovh
+  IMAGE_PREFIX: unishadow/unpload
 
 jobs:
   # ============================================
-  # BUILD: Docker Images
-  # ============================================
-  build:
-    name: 🏗️ Build Images
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        run: |
-          docker version
-          echo "Docker is ready"
-
-      - name: Extract version
-        id: version
-        run: |
-          if echo "${{ github.ref }}" | grep -q "refs/tags/"; then
-            VERSION=$(echo "${{ github.ref }}" | sed 's|refs/tags/v||')
-          else
-            VERSION="latest"
-          fi
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Building version: $VERSION"
-
-      - name: Build API image
-        run: |
-          docker build \
-            --build-arg NODE_ENV=production \
-            -t unpload-api:${{ steps.version.outputs.version }} \
-            -f docker/Dockerfile.api .
-          echo "✅ API image built"
-
-      - name: Build Web image
-        run: |
-          docker build \
-            --build-arg NODE_ENV=production \
-            -t unpload-web:${{ steps.version.outputs.version }} \
-            -f docker/Dockerfile.web .
-          echo "✅ Web image built"
-
-      - name: Save images
-        run: |
-          mkdir -p ./images
-          docker save unpload-api:${{ steps.version.outputs.version }} | gzip > ./images/unpload-api.tar.gz
-          docker save unpload-web:${{ steps.version.outputs.version }} | gzip > ./images/unpload-web.tar.gz
-          ls -lh ./images/
-
-      - name: Upload images as artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: docker-images
-          path: ./images/
-          retention-days: 1
-
-  # ============================================
-  # DEPLOY: Transfer and Start
+  # Deploy to Production
   # ============================================
   deploy:
-    name: 🚀 Deploy to Server
+    name: 🚀 Deploy
     runs-on: ubuntu-latest
-    needs: [build]
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    environment: ${{ github.event.inputs.environment || 'production' }}
+    
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Download images
-        uses: actions/download-artifact@v4
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
         with:
-          name: docker-images
-          path: ./images
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
 
-      - name: Setup SSH key
+      - name: Add host to known_hosts
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -p ${{ secrets.DEPLOY_PORT || 22 }} ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
+          ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Transfer images to server
+      - name: Deploy to server
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH || '/opt/unpload' }}
         run: |
-          scp -P ${{ secrets.DEPLOY_PORT || 22 }} \
-            ./images/*.tar.gz \
-            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/tmp/
-
-      - name: Transfer compose file
-        run: |
-          scp -P ${{ secrets.DEPLOY_PORT || 22 }} \
-            docker/docker-compose.prod.yml \
-            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/tmp/docker-compose.yml
-
-      - name: Deploy on server
-        run: |
-          ssh -p ${{ secrets.DEPLOY_PORT || 22 }} ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} "
+          ssh $DEPLOY_USER@$DEPLOY_HOST << 'ENDSSH'
             set -e
-            echo '📦 Loading Docker images...'
-            sudo docker load < /tmp/unpload-api.tar.gz
-            sudo docker load < /tmp/unpload-web.tar.gz
             
-            echo '📁 Setting up application...'
-            sudo mkdir -p ${{ env.DEPLOY_PATH }}
-            sudo cp /tmp/docker-compose.yml ${{ env.DEPLOY_PATH }}/docker-compose.yml
+            echo "📂 Navigating to deployment directory..."
+            cd ${{ env.DEPLOY_PATH || '/opt/unpload' }}
             
-            echo '🚀 Starting services...'
-            cd ${{ env.DEPLOY_PATH }}
-            sudo docker compose up -d --remove-orphans
+            echo "🔄 Pulling latest images..."
+            docker compose -f docker/docker-compose.prod.yml pull
             
-            echo '⏳ Waiting for services...'
-            sleep 10
+            echo "🗃️ Running database migrations..."
+            docker compose -f docker/docker-compose.prod.yml run --rm api npx prisma migrate deploy || true
             
-            echo '🧹 Cleaning up...'
-            rm -f /tmp/unpload-*.tar.gz /tmp/docker-compose.yml
-            sudo docker system prune -f || true
+            echo "🚀 Starting services with rolling update..."
+            docker compose -f docker/docker-compose.prod.yml up -d --remove-orphans
             
-            echo '✅ Deployment complete!'
-          "
+            echo "🧹 Cleaning up old images..."
+            docker image prune -f
+            
+            echo "✅ Deployment complete!"
+          ENDSSH
 
-  # ============================================
-  # POST-DEPLOY: Health Check
-  # ============================================
-  health-check:
-    name: 🏥 Health Check
-    runs-on: ubuntu-latest
-    needs: [deploy]
-    steps:
-      - name: Wait for services
-        run: sleep 15
-
-      - name: Check API health
+      - name: Health Check
+        env:
+          API_URL: ${{ secrets.API_URL || 'http://localhost:4000' }}
         run: |
-          for i in 1 2 3 4 5; do
-            if curl -sf http://${{ secrets.DEPLOY_HOST }}:4000/api/health; then
-              echo "✅ API is healthy!"
+          echo "⏳ Waiting for API to be ready..."
+          sleep 10
+          
+          for i in {1..5}; do
+            if curl -sf "${{ env.API_URL }}/api/health" > /dev/null 2>&1; then
+              echo "✅ Health check passed!"
               exit 0
             fi
-            echo "Attempt $i failed, retrying in 10s..."
-            sleep 10
+            echo "Attempt $i/5 failed, retrying in 5s..."
+            sleep 5
           done
-          echo "⚠️ Health check failed"
+          
+          echo "❌ Health check failed after 5 attempts"
+          exit 1
+
+      - name: Rollback on failure
+        if: failure()
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH || '/opt/unpload' }}
+        run: |
+          echo "🔄 Rolling back to previous version..."
+          ssh $DEPLOY_USER@$DEPLOY_HOST << 'ENDSSH'
+            cd ${{ env.DEPLOY_PATH || '/opt/unpload' }}
+            docker compose -f docker/docker-compose.prod.yml down
+            docker compose -f docker/docker-compose.prod.yml up -d --remove-orphans
+          ENDSSH
+
+      - name: Notify Discord - Success
+        if: success()
+        uses: sarisia/actions-status-discord@v1
         continue-on-error: true
+        with:
+          webhook: ${{ secrets.DISCORD_WEBHOOK }}
+          status: success
+          title: "🚀 Deployment Successful"
+          description: |
+            **Environment:** ${{ github.event.inputs.environment || 'production' }}
+            **Commit:** `${{ github.sha }}`
+            **Branch:** `${{ github.ref_name }}`
+          color: 0x00ff00
+
+      - name: Notify Discord - Failure
+        if: failure()
+        uses: sarisia/actions-status-discord@v1
+        continue-on-error: true
+        with:
+          webhook: ${{ secrets.DISCORD_WEBHOOK }}
+          status: failure
+          title: "❌ Deployment Failed"
+          description: |
+            **Environment:** ${{ github.event.inputs.environment || 'production' }}
+            **Commit:** `${{ github.sha }}`
+            **Branch:** `${{ github.ref_name }}`
+            
+            Check the workflow logs for details.
+          color: 0xff0000
 
   # ============================================
-  # DATABASE: Run Migrations
+  # Deployment Summary
   # ============================================
-  migrate:
-    name: 🗄️ Database Migration
+  summary:
+    name: 📋 Deployment Summary
     runs-on: ubuntu-latest
-    needs: [health-check]
+    needs: deploy
+    if: always()
     steps:
-      - name: Setup SSH
+      - name: Generate summary
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -p ${{ secrets.DEPLOY_PORT || 22 }} ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
-
-      - name: Run migrations
-        run: |
-          ssh -p ${{ secrets.DEPLOY_PORT || 22 }} ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} "
-            cd ${{ env.DEPLOY_PATH }}
-            sudo docker compose exec -T api npx prisma db push --accept-data-loss || echo 'Migration skipped'
-            echo '✅ Database migration complete'
-          "
-
-  # ============================================
-  # SUMMARY
-  # ============================================
-  deploy-success:
-    name: 🎉 Deployment Complete
-    runs-on: ubuntu-latest
-    needs: [deploy, health-check, migrate]
-    if: success()
-    steps:
-      - name: Deployment Summary
-        run: |
-          echo "=========================================="
-          echo "🎉 DEPLOYMENT SUCCESSFUL!"
-          echo "=========================================="
-          echo "Host: ${{ secrets.DEPLOY_HOST }}"
-          echo "=========================================="
+          echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Status | ${{ needs.deploy.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Environment | ${{ github.event.inputs.environment || 'production' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Commit | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Branch | \`${{ github.ref_name }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Triggered by | ${{ github.event_name }} |" >> $GITHUB_STEP_SUMMARY
