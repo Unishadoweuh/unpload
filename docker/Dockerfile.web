@@ -41,7 +41,6 @@ RUN addgroup -S unpload && adduser -S unpload -G unpload
 
 # Copy node_modules from deps
 COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules 2>/dev/null || true
 
 # Copy shared package
 COPY --from=shared-build /app/packages/shared ./packages/shared
