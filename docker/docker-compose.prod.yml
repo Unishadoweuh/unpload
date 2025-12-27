@@ -83,7 +83,7 @@ services:
       context: ..
       dockerfile: docker/Dockerfile.web
       args:
-        NEXT_PUBLIC_API_URL: ${API_URL:-/api}
+        NEXT_PUBLIC_API_URL: ""
     image: unpload-web:latest
     container_name: unpload-web
     restart: unless-stopped
@@ -91,7 +91,7 @@ services:
       api:
         condition: service_healthy
     environment:
-      NEXT_PUBLIC_API_URL: ${API_URL:-/api}
+      NEXT_PUBLIC_API_URL: ""
     expose:
       - "3000"
     healthcheck:
