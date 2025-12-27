@@ -43,6 +43,8 @@ RUN addgroup -S unpload && adduser -S unpload -G unpload
 # Copy production dependencies and built files
 COPY --from=prod-deps /app/node_modules ./node_modules
 COPY --from=api-build /app/apps/api/dist ./dist
+# Copy shared package with package.json for Node.js module resolution
+COPY --from=shared-build /app/packages/shared/package.json ./packages/shared/
 COPY --from=shared-build /app/packages/shared/dist ./packages/shared/dist
 COPY apps/api/prisma ./prisma
 
