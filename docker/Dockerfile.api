@@ -40,12 +40,16 @@ WORKDIR /app
 # Create non-root user
 RUN addgroup -S unpload && adduser -S unpload -G unpload
 
-# Copy production dependencies and built files
+# Copy production dependencies
 COPY --from=prod-deps /app/node_modules ./node_modules
+
+# Copy shared package and link it in node_modules
+COPY --from=shared-build /app/packages/shared ./packages/shared
+RUN mkdir -p node_modules/@unpload && \
+    ln -s /app/packages/shared node_modules/@unpload/shared
+
+# Copy API built files
 COPY --from=api-build /app/apps/api/dist ./dist
-# Copy shared package with package.json for Node.js module resolution
-COPY --from=shared-build /app/packages/shared/package.json ./packages/shared/
-COPY --from=shared-build /app/packages/shared/dist ./packages/shared/dist
 COPY apps/api/prisma ./prisma
 
 # Set ownership
