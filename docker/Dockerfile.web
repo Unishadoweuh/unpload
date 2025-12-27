@@ -24,7 +24,7 @@ COPY tsconfig.json ./
 WORKDIR /app/apps/web
 
 # Build-time environment variables
-ARG NEXT_PUBLIC_API_URL=http://localhost:4000
+ARG NEXT_PUBLIC_API_URL=/api
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
 RUN npm run build
@@ -36,10 +36,10 @@ WORKDIR /app
 # Create non-root user
 RUN addgroup -S unpload && adduser -S unpload -G unpload
 
-# Copy built files
+# Copy standalone build (includes node_modules with next)
 COPY --from=web-build /app/apps/web/.next/standalone ./
-COPY --from=web-build /app/apps/web/.next/static ./.next/static
-COPY --from=web-build /app/apps/web/public ./public
+COPY --from=web-build /app/apps/web/.next/static ./apps/web/.next/static
+COPY --from=web-build /app/apps/web/public ./apps/web/public
 
 # Set ownership
 RUN chown -R unpload:unpload /app
@@ -48,7 +48,8 @@ USER unpload
 
 ENV NODE_ENV=production
 ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
 
 EXPOSE 3000
 
-CMD ["node", "server.js"]
+CMD ["node", "apps/web/server.js"]
