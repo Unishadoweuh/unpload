@@ -35,11 +35,16 @@ export class AuthService {
             throw new ConflictException('Email already exists');
         }
 
+        // Check if this is the first user - make them admin
+        const userCount = await this.usersService.count();
+        const isFirstUser = userCount === 0;
+
         const passwordHash = await bcrypt.hash(dto.password, 12);
         const user = await this.usersService.create({
             email: dto.email,
             name: dto.name,
             passwordHash,
+            role: isFirstUser ? 'ADMIN' : 'USER',
         });
 
         return this.generateTokens(user);

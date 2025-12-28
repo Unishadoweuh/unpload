@@ -9,6 +9,7 @@ interface CreateUserData {
     passwordHash?: string;
     oauthProvider?: OAuthProvider;
     oauthId?: string;
+    role?: 'ADMIN' | 'USER';
 }
 
 @Injectable()
@@ -35,10 +36,6 @@ export class UsersService {
     }
 
     async create(data: CreateUserData): Promise<User> {
-        // Check if this is the first user (make them admin)
-        const userCount = await this.prisma.user.count();
-        const isFirstUser = userCount === 0;
-
         return this.prisma.user.create({
             data: {
                 email: data.email,
@@ -46,7 +43,7 @@ export class UsersService {
                 passwordHash: data.passwordHash,
                 oauthProvider: data.oauthProvider,
                 oauthId: data.oauthId,
-                role: isFirstUser ? 'ADMIN' : 'USER',
+                role: data.role ?? 'USER',
                 quota: {
                     create: {
                         maxBytes: BigInt(LIMITS.DEFAULT_QUOTA),
@@ -54,6 +51,10 @@ export class UsersService {
                 },
             },
         });
+    }
+
+    async count(): Promise<number> {
+        return this.prisma.user.count();
     }
 
     async linkOAuth(userId: string, provider: OAuthProvider, oauthId: string): Promise<User> {
