@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { api } from '@/lib/api';
 import { ArrowLeft, User, Key, HardDrive, Download } from 'lucide-react';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
 interface UserProfile {
     id: string;

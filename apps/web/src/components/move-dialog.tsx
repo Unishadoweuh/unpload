@@ -20,7 +20,7 @@ interface MoveDialogProps {
     onMoved: () => void;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
 export function MoveDialog({ itemType, itemName, itemId, currentFolderId, onClose, onMoved }: MoveDialogProps) {
     const [folders, setFolders] = useState<Folder[]>([]);

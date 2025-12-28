@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { api } from '@/lib/api';
 import { formatBytes, formatDate } from '@/lib/utils';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
 interface User {
     id: string;

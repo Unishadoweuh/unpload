@@ -5,7 +5,7 @@ import { X, Download, ZoomIn, ZoomOut, RotateCw, FileText, Image as ImageIcon, F
 import { Button } from './ui/button';
 import { formatBytes } from '@/lib/utils';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
 interface FilePreviewProps {
     fileId: string;
