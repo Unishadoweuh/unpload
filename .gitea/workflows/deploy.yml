@@ -80,10 +80,12 @@ jobs:
             echo "🏗️ Building Docker images locally..."
             docker compose --env-file .env -f docker/docker-compose.prod.yml build
             
-            echo "🗃️ Running database migrations..."
-            docker compose --env-file .env -f docker/docker-compose.prod.yml run --rm api npx prisma migrate deploy || true
+            echo "🗃️ Starting database and running schema sync..."
+            docker compose --env-file .env -f docker/docker-compose.prod.yml up -d db
+            sleep 10
+            docker compose --env-file .env -f docker/docker-compose.prod.yml run --rm api npx prisma db push --accept-data-loss
             
-            echo "🚀 Starting services..."
+            echo "🚀 Starting all services..."
             docker compose --env-file .env -f docker/docker-compose.prod.yml up -d --remove-orphans
             
             echo "🧹 Cleaning up old images..."
