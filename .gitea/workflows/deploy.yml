@@ -80,9 +80,21 @@ jobs:
             echo "🏗️ Building Docker images locally..."
             docker compose --env-file .env -f docker/docker-compose.prod.yml build
             
-            echo "🗃️ Starting database and running schema sync..."
+            echo "🗃️ Starting database and waiting for it to be ready..."
             docker compose --env-file .env -f docker/docker-compose.prod.yml up -d db
-            sleep 10
+            
+            # Wait for database to be healthy
+            echo "⏳ Waiting for database to be healthy..."
+            for i in 1 2 3 4 5 6 7 8 9 10; do
+              if docker inspect --format='{{.State.Health.Status}}' unpload-db 2>/dev/null | grep -q "healthy"; then
+                echo "✅ Database is healthy!"
+                break
+              fi
+              echo "  Attempt $i/10 - waiting..."
+              sleep 3
+            done
+            
+            echo "🔧 Running schema sync..."
             docker compose --env-file .env -f docker/docker-compose.prod.yml run --rm api npx prisma db push --accept-data-loss
             
             echo "🚀 Starting all services..."
