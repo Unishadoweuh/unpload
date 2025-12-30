@@ -166,11 +166,22 @@ export default function DashboardPage() {
         setUploading(true);
         try {
             await api.uploadFiles(Array.from(uploadFiles), currentFolder || undefined);
-            await loadData();
+            // Force refresh the file list
+            const [filesData, foldersData] = await Promise.all([
+                api.listFiles(currentFolder || undefined),
+                api.listFolders(currentFolder || undefined),
+            ]);
+            setFiles((filesData as any) || []);
+            setFolders((foldersData as any) || []);
         } catch (error) {
             console.error('Upload failed:', error);
+            alert('Upload failed. Please try again.');
         } finally {
             setUploading(false);
+            // Reset file input to allow uploading the same file again
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
         }
     };
 
@@ -178,9 +189,16 @@ export default function DashboardPage() {
         setUploading(true);
         try {
             await api.uploadFiles(droppedFiles, currentFolder || undefined);
-            await loadData();
+            // Force refresh the file list
+            const [filesData, foldersData] = await Promise.all([
+                api.listFiles(currentFolder || undefined),
+                api.listFolders(currentFolder || undefined),
+            ]);
+            setFiles((filesData as any) || []);
+            setFolders((foldersData as any) || []);
         } catch (error) {
             console.error('Upload failed:', error);
+            alert('Upload failed. Please try again.');
         } finally {
             setUploading(false);
         }
@@ -355,12 +373,12 @@ export default function DashboardPage() {
                             <CardContent className="pt-6">
                                 <div className="flex items-center gap-4">
                                     <div className={`p-3 rounded-lg ${quotaPercent >= 95 ? 'bg-red-100 dark:bg-red-900/50' :
-                                            quotaPercent >= 80 ? 'bg-orange-100 dark:bg-orange-900/50' :
-                                                'bg-blue-100 dark:bg-blue-900/50'
+                                        quotaPercent >= 80 ? 'bg-orange-100 dark:bg-orange-900/50' :
+                                            'bg-blue-100 dark:bg-blue-900/50'
                                         }`}>
                                         <Upload className={`h-6 w-6 ${quotaPercent >= 95 ? 'text-red-600' :
-                                                quotaPercent >= 80 ? 'text-orange-600' :
-                                                    'text-blue-600'
+                                            quotaPercent >= 80 ? 'text-orange-600' :
+                                                'text-blue-600'
                                             }`} />
                                     </div>
                                     <div>
@@ -375,8 +393,8 @@ export default function DashboardPage() {
                                         <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                                             <div
                                                 className={`h-2 rounded-full transition-all ${quotaPercent >= 95 ? 'bg-red-600' :
-                                                        quotaPercent >= 80 ? 'bg-orange-500' :
-                                                            'bg-primary-600'
+                                                    quotaPercent >= 80 ? 'bg-orange-500' :
+                                                        'bg-primary-600'
                                                     }`}
                                                 style={{ width: `${Math.min(quotaPercent, 100)}%` }}
                                             />
