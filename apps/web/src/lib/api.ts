@@ -143,7 +143,7 @@ class ApiClient {
         });
 
         if (!response.ok) throw new Error('Upload failed');
-        return response.json();
+        return await response.json();
     }
 
     async deleteFile(id: string) {

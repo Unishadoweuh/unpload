@@ -105,6 +105,22 @@ export default function DashboardPage() {
         }
     };
 
+    // Silent refresh without showing loading spinner - used after uploads
+    const refreshFiles = async () => {
+        try {
+            const [filesData, foldersData, userData] = await Promise.all([
+                api.listFiles(currentFolder || undefined),
+                api.listFolders(currentFolder || undefined),
+                api.getMe(),
+            ]);
+            setFiles((filesData as any) || []);
+            setFolders((foldersData as any) || []);
+            setUser(userData as UserData);
+        } catch (error) {
+            console.error('Failed to refresh files:', error);
+        }
+    };
+
     // Filter and sort
     const filteredAndSortedItems = useMemo(() => {
         let filteredFiles = files;
@@ -166,13 +182,8 @@ export default function DashboardPage() {
         setUploading(true);
         try {
             await api.uploadFiles(Array.from(uploadFiles), currentFolder || undefined);
-            // Force refresh the file list
-            const [filesData, foldersData] = await Promise.all([
-                api.listFiles(currentFolder || undefined),
-                api.listFolders(currentFolder || undefined),
-            ]);
-            setFiles((filesData as any) || []);
-            setFolders((foldersData as any) || []);
+            // Refresh the file list after upload completes
+            await refreshFiles();
         } catch (error) {
             console.error('Upload failed:', error);
             alert('Upload failed. Please try again.');
@@ -189,13 +200,8 @@ export default function DashboardPage() {
         setUploading(true);
         try {
             await api.uploadFiles(droppedFiles, currentFolder || undefined);
-            // Force refresh the file list
-            const [filesData, foldersData] = await Promise.all([
-                api.listFiles(currentFolder || undefined),
-                api.listFolders(currentFolder || undefined),
-            ]);
-            setFiles((filesData as any) || []);
-            setFolders((foldersData as any) || []);
+            // Refresh the file list after upload completes
+            await refreshFiles();
         } catch (error) {
             console.error('Upload failed:', error);
             alert('Upload failed. Please try again.');
