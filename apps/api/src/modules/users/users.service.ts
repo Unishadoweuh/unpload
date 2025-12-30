@@ -118,4 +118,39 @@ export class UsersService {
             where: { id },
         });
     }
+
+    async recalculateQuota(userId: string): Promise<{ usedBytes: bigint }> {
+        // Sum all file sizes for this user (excluding soft-deleted files)
+        const result = await this.prisma.file.aggregate({
+            where: {
+                userId,
+                deletedAt: null,
+            },
+            _sum: {
+                size: true,
+            },
+        });
+
+        const usedBytes = result._sum.size || BigInt(0);
+
+        // Update the quota
+        await this.prisma.quota.update({
+            where: { userId },
+            data: { usedBytes },
+        });
+
+        return { usedBytes };
+    }
+
+    async recalculateAllQuotas(): Promise<{ updated: number }> {
+        const users = await this.prisma.user.findMany({
+            select: { id: true },
+        });
+
+        for (const user of users) {
+            await this.recalculateQuota(user.id);
+        }
+
+        return { updated: users.length };
+    }
 }

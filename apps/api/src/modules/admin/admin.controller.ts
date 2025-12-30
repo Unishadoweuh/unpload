@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Delete, Param, Body, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Param, Body, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -49,5 +49,11 @@ export class AdminController {
     async deleteUser(@Param('id') id: string) {
         await this.adminService.deleteUser(id);
         return { success: true };
+    }
+
+    @Post('quotas/recalculate')
+    @ApiOperation({ summary: 'Recalculate all user quotas based on actual file sizes' })
+    async recalculateQuotas() {
+        return this.adminService.recalculateAllQuotas();
     }
 }

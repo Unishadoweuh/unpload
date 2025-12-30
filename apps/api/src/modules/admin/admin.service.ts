@@ -64,4 +64,8 @@ export class AdminService {
     async deleteUser(id: string) {
         return this.usersService.delete(id);
     }
+
+    async recalculateAllQuotas() {
+        return this.usersService.recalculateAllQuotas();
+    }
 }
