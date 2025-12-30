@@ -88,6 +88,11 @@ export default function ProfilePage() {
         }
     };
 
+    const getUploadUrl = () => {
+        if (typeof window === 'undefined') return API_URL;
+        return API_URL || window.location.origin;
+    };
+
     const downloadShareXConfig = () => {
         const token = api.getToken();
         const config = {
@@ -95,22 +100,193 @@ export default function ProfilePage() {
             Name: "UnPload",
             DestinationType: "ImageUploader, FileUploader",
             RequestMethod: "POST",
-            RequestURL: `${API_URL}/api/files/upload`,
+            RequestURL: `${getUploadUrl()}/api/files/upload`,
             Headers: {
                 Authorization: `Bearer ${token}`
             },
             Body: "MultipartFormData",
-            FileFormName: "file",
-            URL: "{json:share.url}",
+            FileFormName: "files",
+            URL: "{json:url}",
             ThumbnailURL: "",
             DeletionURL: ""
         };
 
-        const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+        downloadFile(JSON.stringify(config, null, 2), 'UnPload-ShareX.sxcu', 'application/json');
+    };
+
+    const downloadFlameshotScript = () => {
+        const token = api.getToken();
+        const script = `#!/bin/bash
+# UnPload - Flameshot Upload Script
+# Usage: Save this script, make it executable (chmod +x), and run it
+# Or bind it to a keyboard shortcut
+
+UPLOAD_URL="${getUploadUrl()}/api/files/upload"
+TOKEN="${token}"
+
+# Take screenshot with Flameshot and save to temp file
+TEMP_FILE=$(mktemp /tmp/screenshot-XXXXXX.png)
+flameshot gui --raw > "$TEMP_FILE"
+
+# Check if screenshot was taken (file size > 0)
+if [ ! -s "$TEMP_FILE" ]; then
+    rm -f "$TEMP_FILE"
+    exit 1
+fi
+
+# Upload to UnPload
+RESPONSE=$(curl -s -X POST "$UPLOAD_URL" \\
+    -H "Authorization: Bearer $TOKEN" \\
+    -F "files=@$TEMP_FILE")
+
+# Extract URL from response and copy to clipboard
+URL=$(echo "$RESPONSE" | jq -r '.[0].url // .[0].id' 2>/dev/null)
+
+if [ -n "$URL" ] && [ "$URL" != "null" ]; then
+    # Try different clipboard commands
+    if command -v xclip &> /dev/null; then
+        echo -n "$URL" | xclip -selection clipboard
+    elif command -v xsel &> /dev/null; then
+        echo -n "$URL" | xsel --clipboard
+    elif command -v wl-copy &> /dev/null; then
+        echo -n "$URL" | wl-copy
+    fi
+    
+    # Show notification
+    if command -v notify-send &> /dev/null; then
+        notify-send "UnPload" "Screenshot uploaded! URL copied to clipboard."
+    fi
+    echo "Uploaded: $URL"
+else
+    if command -v notify-send &> /dev/null; then
+        notify-send "UnPload" "Upload failed!" --urgency=critical
+    fi
+    echo "Upload failed: $RESPONSE"
+fi
+
+# Cleanup
+rm -f "$TEMP_FILE"
+`;
+        downloadFile(script, 'unpload-flameshot.sh', 'text/x-shellscript');
+    };
+
+    const downloadKsnipConfig = () => {
+        const token = api.getToken();
+        // Ksnip uses INI-style config for custom uploaders
+        const config = `[Uploader]
+Type=Custom
+UploadUrl=${getUploadUrl()}/api/files/upload
+Token=${token}
+
+; Ksnip Custom Uploader Instructions:
+; 1. Open Ksnip Settings
+; 2. Go to "Image Grabber" > "Uploader"
+; 3. Select "Custom" as uploader type
+; 4. Set the following:
+;    - URL: ${getUploadUrl()}/api/files/upload
+;    - HTTP Method: POST
+;    - Form Field Name: files
+;    - Add Header: Authorization = Bearer ${token}
+`;
+        downloadFile(config, 'unpload-ksnip.txt', 'text/plain');
+    };
+
+    const downloadCurlScript = () => {
+        const token = api.getToken();
+        const script = `#!/bin/bash
+# UnPload - Universal Upload Script
+# Works with any file on Linux, macOS, and Windows (Git Bash/WSL)
+
+UPLOAD_URL="${getUploadUrl()}/api/files/upload"
+TOKEN="${token}"
+
+# Check if file is provided
+if [ -z "$1" ]; then
+    echo "Usage: $0 <file>"
+    echo "Example: $0 screenshot.png"
+    exit 1
+fi
+
+FILE="$1"
+
+if [ ! -f "$FILE" ]; then
+    echo "Error: File not found: $FILE"
+    exit 1
+fi
+
+# Upload file
+echo "Uploading $FILE..."
+RESPONSE=$(curl -s -X POST "$UPLOAD_URL" \\
+    -H "Authorization: Bearer $TOKEN" \\
+    -F "files=@$FILE")
+
+echo "Response: $RESPONSE"
+
+# Try to extract and display URL
+URL=$(echo "$RESPONSE" | jq -r '.[0].url // .[0].id' 2>/dev/null)
+if [ -n "$URL" ] && [ "$URL" != "null" ]; then
+    echo ""
+    echo "✓ Upload successful!"
+    echo "File ID/URL: $URL"
+fi
+`;
+        downloadFile(script, 'unpload-upload.sh', 'text/x-shellscript');
+    };
+
+    const downloadIOSShortcut = () => {
+        const token = api.getToken();
+        // Generate a shareable shortcut link (instructions)
+        const instructions = `# UnPload - iOS Shortcuts Instructions
+
+## Quick Setup
+
+Create a new Shortcut with these actions:
+
+1. **Receive** - What is passed to this shortcut
+   - Accept: Images, Files
+   
+2. **Get Contents of URL**
+   - URL: ${getUploadUrl()}/api/files/upload
+   - Method: POST
+   - Headers:
+     - Authorization: Bearer ${token}
+   - Request Body: Form
+     - files: Shortcut Input
+     
+3. **Show Result**
+
+## Alternative: Import via QR Code
+
+Scan this configuration in any app that supports REST API testing:
+
+\`\`\`json
+{
+  "url": "${getUploadUrl()}/api/files/upload",
+  "method": "POST",
+  "headers": {
+    "Authorization": "Bearer ${token}"
+  },
+  "body": {
+    "type": "multipart",
+    "field": "files"
+  }
+}
+\`\`\`
+
+## Token
+
+Your API token (keep it secret!):
+${token}
+`;
+        downloadFile(instructions, 'unpload-ios-instructions.md', 'text/markdown');
+    };
+
+    const downloadFile = (content: string, filename: string, type: string) => {
+        const blob = new Blob([content], { type });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'UnPload-ShareX.sxcu';
+        a.download = filename;
         a.click();
         URL.revokeObjectURL(url);
     };
@@ -231,22 +407,94 @@ export default function ProfilePage() {
                     </CardContent>
                 </Card>
 
-                {/* ShareX Integration */}
+                {/* App Integrations */}
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <Download className="h-5 w-5" />
-                            ShareX Integration
+                            App Integrations
                         </CardTitle>
-                        <CardDescription>Upload screenshots and files directly from ShareX</CardDescription>
+                        <CardDescription>
+                            Upload screenshots and files directly from your favorite apps
+                        </CardDescription>
                     </CardHeader>
-                    <CardContent>
-                        <Button onClick={downloadShareXConfig} variant="outline">
-                            Download ShareX Config (.sxcu)
-                        </Button>
-                        <p className="text-xs text-gray-500 mt-2">
-                            Double-click the downloaded file to import it into ShareX.
-                        </p>
+                    <CardContent className="space-y-6">
+                        {/* Windows */}
+                        <div className="space-y-3">
+                            <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                                <span className="text-lg">🪟</span> Windows
+                            </h4>
+                            <div className="flex flex-wrap gap-2">
+                                <Button onClick={downloadShareXConfig} variant="outline" size="sm">
+                                    ShareX (.sxcu)
+                                </Button>
+                            </div>
+                            <p className="text-xs text-gray-500">
+                                Double-click the downloaded file to import it into ShareX.
+                            </p>
+                        </div>
+
+                        {/* Linux */}
+                        <div className="space-y-3">
+                            <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                                <span className="text-lg">🐧</span> Linux
+                            </h4>
+                            <div className="flex flex-wrap gap-2">
+                                <Button onClick={downloadFlameshotScript} variant="outline" size="sm">
+                                    Flameshot Script
+                                </Button>
+                                <Button onClick={downloadKsnipConfig} variant="outline" size="sm">
+                                    Ksnip Instructions
+                                </Button>
+                            </div>
+                            <p className="text-xs text-gray-500">
+                                Make the script executable with <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">chmod +x</code> then bind it to a keyboard shortcut.
+                            </p>
+                        </div>
+
+                        {/* Cross-platform */}
+                        <div className="space-y-3">
+                            <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                                <span className="text-lg">🌐</span> Cross-Platform
+                            </h4>
+                            <div className="flex flex-wrap gap-2">
+                                <Button onClick={downloadCurlScript} variant="outline" size="sm">
+                                    cURL Script (.sh)
+                                </Button>
+                            </div>
+                            <p className="text-xs text-gray-500">
+                                Universal script that works on Linux, macOS, and Windows (Git Bash/WSL).
+                                Usage: <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">./unpload-upload.sh myfile.png</code>
+                            </p>
+                        </div>
+
+                        {/* Mobile */}
+                        <div className="space-y-3">
+                            <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                                <span className="text-lg">📱</span> Mobile
+                            </h4>
+                            <div className="flex flex-wrap gap-2">
+                                <Button onClick={downloadIOSShortcut} variant="outline" size="sm">
+                                    iOS Shortcuts Guide
+                                </Button>
+                            </div>
+                            <p className="text-xs text-gray-500">
+                                Instructions to create an iOS Shortcut for uploading from your iPhone/iPad.
+                            </p>
+                        </div>
+
+                        {/* API Info */}
+                        <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                            <p className="text-xs text-gray-600 dark:text-gray-400">
+                                <strong>API Endpoint:</strong>{' '}
+                                <code className="bg-gray-100 dark:bg-gray-700 px-1 rounded">
+                                    {getUploadUrl()}/api/files/upload
+                                </code>
+                            </p>
+                            <p className="text-xs text-gray-500 mt-1">
+                                All configs include your personal API token. Keep them secure and don&apos;t share!
+                            </p>
+                        </div>
                     </CardContent>
                 </Card>
             </div>
